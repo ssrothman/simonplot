@@ -17,6 +17,10 @@ class AbstractCut:
     @property
     def plottext(self):
         raise NotImplementedError()
+    
+    #equality operator
+    def __eq__(self, other):
+        return False
 
 class NoCut(AbstractCut):
     def __init__(self):
@@ -59,8 +63,13 @@ class EqualsCut(AbstractCut):
 
     @property
     def plottext(self):
-        return "%s$ = %g$"%(config['axis_labels'][self.variable.key], 
+        return "%s$ = %g$"%(self.variable.label, 
                             self.value)
+    
+    def __eq__(self, other):
+        if type(other) is not EqualsCut:
+            return False
+        return self.variable.key == other.variable.key and self.value == other.value
 
 class TwoSidedCut(AbstractCut):
     def __init__(self, variable, low, high):
@@ -70,6 +79,13 @@ class TwoSidedCut(AbstractCut):
             self.variable = variable_from_string(variable)
         else:
             self.variable = variable
+
+    def __eq__(self, other):
+        if type(other) is not TwoSidedCut:
+            return False
+        return (self.variable.key == other.variable.key and
+                self.low == other.low and
+                self.high == other.high)
 
     @property
     def columns(self):
@@ -90,7 +106,7 @@ class TwoSidedCut(AbstractCut):
     def plottext(self):
         return "$%g \\leq $%s$ < %g$"%(
                 self.low,
-                config['axis_labels'][self.variable.key], 
+                self.variable.label, 
                 self.high)
     
 class GreaterThanCut(AbstractCut):
@@ -115,9 +131,14 @@ class GreaterThanCut(AbstractCut):
 
     @property
     def plottext(self):
-        return "%s$ \\geq %g$"%(config['axis_labels'][self.variable.key], 
+        return "%s$ \\geq %g$"%(self.variable.label, 
                             self.value)
     
+    def __eq__(self, other):
+        if type(other) is not GreaterThanCut:
+            return False
+        return self.variable.key == other.variable.key and self.value == other.value
+
 class LessThanCut(AbstractCut):
     def __init__(self, variable, value):
         self.value = value
@@ -140,8 +161,13 @@ class LessThanCut(AbstractCut):
 
     @property
     def plottext(self):
-        return "%s$ < %g$"%(config['axis_labels'][self.variable.key], 
+        return "%s$ < %g$"%(self.variable.label, 
                             self.value)
+
+    def __eq__(self, other):
+        if type(other) is not LessThanCut:
+            return False
+        return self.variable.key == other.variable.key and self.value == other.value
 
 class AndCuts(AbstractCut):
     def __init__(self, *cuts):
@@ -173,3 +199,36 @@ class AndCuts(AbstractCut):
         for cut in self.cuts[1:]:
             result += '\n' + cut.plottext
         return result
+
+def common_cuts_(cut1, cut2):
+    if type(cut1) is AndCuts and type(cut2) is not AndCuts:
+        return common_cuts(list(cut1.cuts) + [cut2])
+    elif type(cut2) is AndCuts and type(cut1) is not AndCuts:
+        return common_cuts([cut1] + list(cut2.cuts))
+    elif type(cut1) is AndCuts and type(cut2) is AndCuts:
+        c1s = list(cut1.cuts)
+        c2s = list(cut2.cuts)
+
+        common = []
+        for c1 in c1s:
+            for c2 in c2s:
+                if c1 == c2:
+                    common.append(c1)
+        
+        return AndCuts(*common)
+
+    elif cut1 == cut2:
+        return cut1
+    else:  
+        return NoCut()
+
+def common_cuts(cuts):
+    if len(cuts) == 0:
+        return NoCut()
+    elif len(cuts) == 1:
+        return cuts[0]
+    else:
+        common = cuts[0]
+        for cut in cuts[1:]:
+            common = common_cuts_(common, cut)
+        return common

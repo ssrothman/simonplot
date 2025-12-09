@@ -1,4 +1,4 @@
-from .SetupConfig import config
+from .SetupConfig import config, lookup_axis_label
 
 def variable_from_string(name):
     if 'over' in name:
@@ -34,7 +34,7 @@ class AbstractVariable:
         if hasattr(self, '_label') and self._label is not None:
             return self._label
         else:
-            return config['axis_labels'].get(self.key, self.key)
+            return lookup_axis_label(self.key)
 
 class Variable(AbstractVariable):
     def __init__(self, name):

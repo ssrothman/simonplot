@@ -19,3 +19,6 @@ def add_cms_legend(ax, isdata: bool):
         hep.cms.label(ax=ax, data=False, 
                       label=config['cms_label'])
         
+def savefig(fig, path: str):
+    fig.savefig(path+'.png', dpi=300, bbox_inches='tight', format='png')
+    fig.savefig(path+'.pdf', bbox_inches='tight', format='pdf')

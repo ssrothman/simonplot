@@ -1,4 +1,4 @@
-from coffea.nanoevents import NanoEventsFactory
+from coffea.nanoevents import NanoEventsFactory, NanoAODSchema
 import awkward as ak
 
 import pyarrow.parquet as pq
@@ -23,9 +23,13 @@ class AbstractDataset:
 
 class NanoEventsDataset(AbstractDataset):
     def __init__(self, fname, **options):
+        #suppress warnings
+        NanoAODSchema.warn_missing_crossrefs = False
+
         self._events = NanoEventsFactory.from_root(
             fname,
-            **options   
+            delayed=False,
+            **options 
         ).events()
     
     def ensure_columns(self, columns):

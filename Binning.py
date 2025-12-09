@@ -1,4 +1,4 @@
-from .SetupConfig import config
+from .SetupConfig import config, lookup_axis_label
 import hist
 
 def transform_from_string(str):
@@ -63,7 +63,7 @@ class RegularBinning(AbstractBinning):
             self.high,
             transform=self.transform,
             name=variable.key,
-            label=config['axis_labels'].get(variable.key, variable.key)
+            label=lookup_axis_label(variable.key)
         )
     
 class ExplicitBinning(AbstractBinning):
@@ -78,5 +78,5 @@ class ExplicitBinning(AbstractBinning):
         return hist.axis.Variable(
             self.edges,
             name=variable.key,
-            label=config['axis_labels'].get(variable.key, variable.key)
+            label=lookup_axis_label(variable.key)
         )
