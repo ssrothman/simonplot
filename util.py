@@ -20,5 +20,6 @@ def add_cms_legend(ax, isdata: bool):
                       label=config['cms_label'])
         
 def savefig(fig, path: str):
+    print("Saving figure %s" % (path))
     fig.savefig(path+'.png', dpi=300, bbox_inches='tight', format='png')
     fig.savefig(path+'.pdf', bbox_inches='tight', format='pdf')
