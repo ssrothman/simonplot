@@ -124,7 +124,7 @@ class DifferenceVariable(AbstractVariable):
 
     @property
     def columns(self):
-        return self.gen.columns + self.reco.columns
+        return list(set(self.gen.columns + self.reco.columns))
 
     def evaluate(self, table):
         return self.reco.evaluate(table) - self.gen.evaluate(table)
@@ -133,6 +133,28 @@ class DifferenceVariable(AbstractVariable):
     def key(self):
         return "%s_minus_%s"%(self.reco.key, self.gen.key)
     
+class SumVariable(AbstractVariable):
+    def __init__(self, x1, x2):
+        self.x1 = x1
+        self.x2 = x2
+
+        if type(x1) is str:
+            self.x1 = variable_from_string(x1)
+        if type(x2) is str:
+            self.x2 = variable_from_string(x2)
+
+    @property
+    def columns(self):
+        return list(set(self.x1.columns + self.x2.columns))
+
+    def evaluate(self, table):
+        return self.x1.evaluate(table) + self.x2.evaluate(table)
+
+    @property
+    def key(self):
+        return "%s_plus_%s"%(self.x1.key, self.x2.key)
+    
+
 
 class CorrectionlibVariable(AbstractVariable):
     def __init__(self, var_l, path, key):
@@ -204,7 +226,7 @@ class RateVariable(AbstractVariable):
 
     @property
     def columns(self):
-        return self.binaryfield.columns + self.wrt.columns
+        return list(set(self.binaryfield.columns + self.wrt.columns))
 
     def evaluate(self, table):
         return [self.binaryfield.evaluate(table),
@@ -226,7 +248,7 @@ class RelativeResolutionVariable(AbstractVariable):
 
     @property
     def columns(self):
-        return self.gen.columns + self.reco.columns
+        return list(set(self.gen.columns + self.reco.columns))
     
     def evaluate(self, table):
         gen = self.gen.evaluate(table)
@@ -236,3 +258,75 @@ class RelativeResolutionVariable(AbstractVariable):
     @property
     def key(self):
         return "%s_minus_%s_over_%s"%(self.reco.key, self.gen.key, self.gen.key)
+    
+#utility variable to compute 3D magnitude from 3 component variables
+#not actually any new functionality 
+class Magnitude3dVariable(AbstractVariable):
+    def __init__(self, xvar, yvar, zvar):
+        import numpy as np
+
+        self.xvar = xvar
+        self.yvar = yvar
+        self.zvar = zvar
+
+        self.x2var = UFuncVariable(self.xvar, np.square)
+        self.y2var = UFuncVariable(self.yvar, np.square)
+        self.z2var = UFuncVariable(self.zvar, np.square)
+
+        self.r2var = SumVariable(
+            SumVariable(self.x2var, self.y2var),
+            self.z2var
+        )
+
+        self.rvar = UFuncVariable(self.r2var, np.sqrt)
+    
+    @property
+    def columns(self):
+        return list(set(
+            self.xvar.columns +
+            self.yvar.columns +
+            self.zvar.columns
+        ))  
+    
+    def evaluate(self, table):
+        return self.rvar.evaluate(table)
+    
+    @property
+    def key(self):
+        return "sqrt(%s^2 + %s^2 + %s^2)"%(self.xvar.key, self.yvar.key, self.zvar.key)
+
+class Distance3dVariable(AbstractVariable):
+    def __init__(self, x1var, y1var, z1var, x2var, y2var, z2var):
+        import numpy as np
+
+        self.dxvar = DifferenceVariable(x1var, x2var)
+        self.dyvar = DifferenceVariable(y1var, y2var)
+        self.dzvar = DifferenceVariable(z1var, z2var)
+
+        self.magnitude_var = Magnitude3dVariable(
+            self.dxvar,
+            self.dyvar,
+            self.dzvar
+        )
+
+    @property
+    def columns(self):
+        return list(set(
+            self.dxvar.columns +
+            self.dyvar.columns +
+            self.dzvar.columns
+        ))  
+    
+    def evaluate(self, table):
+        return self.magnitude_var.evaluate(table)
+    
+    @property
+    def key(self):
+        return "Distance3D(%s_%s_%s - %s_%s_%s)"%(
+            self.dxvar.gen.key,
+            self.dyvar.gen.key,
+            self.dzvar.gen.key,
+            self.dxvar.reco.key,
+            self.dyvar.reco.key,
+            self.dzvar.reco.key
+        )
