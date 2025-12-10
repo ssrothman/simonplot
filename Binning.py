@@ -8,7 +8,7 @@ from .Cut import AbstractCut
 from .datasets import AbstractDataset
 from typing import Union, List
 
-def transform_from_string(str : Union[str, None]) -> Union[hist.axis.AxisTransform, None]:
+def transform_from_string(str : Union[str, None]) -> Union[hist.axis.transform.AxisTransform, None]:
     if str is None or str.lower() == "none":
         return None
     else:
@@ -119,7 +119,7 @@ class RegularBinning(AbstractBinning):
         return self._high
 
     @property
-    def transform(self) -> Union[hist.axis.AxisTransform, None]:
+    def transform(self) -> Union[hist.axis.transform.AxisTransform, None]:
         return self._transform
     
     def build_axis(self, variable: AbstractVariable) -> hist.axis.AxesMixin:
