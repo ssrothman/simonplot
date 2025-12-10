@@ -2,7 +2,7 @@ from .SetupConfig import config
 from .Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable
 from .Cut import AbstractCut, common_cuts, NoCut
 from .datasets import AbstractDataset
-from .Binning import AbstractBinning, AutoBinning, DefaultBinning
+from .Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCategoryBinning
 
 from .histplot import simon_histplot
 
@@ -36,7 +36,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
 
     variable, cut, dataset, labels = ensure_same_length(variable_, cut_, dataset_, labels_)
    
-    if type(binning) is AutoBinning:
+    if type(binning) is AutoBinning or type(binning) is AutoIntCategoryBinning:
         axis = binning.build_auto_axis(variable, cut, dataset)
     elif type(binning) is DefaultBinning:
         axis = binning.build_default_axis(variable[0])
@@ -66,6 +66,24 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
         ax.axvline(1.0, color='k', linestyle='dashed')
     elif type(variable[0]) is DifferenceVariable or type(variable[0]) is RelativeResolutionVariable:
         ax.axvline(0.0, color='k', linestyle='dashed')
+
+    if type(binning) is AutoIntCategoryBinning:
+        ticklabels_ints = axis.value(axis.edges[:-1]) # get category labels
+        ticklabels_strs = []
+        for val in ticklabels_ints:
+            if str(val) in binning.label_lookup:
+                ticklabels_strs.append(binning.label_lookup[str(val)])
+            else:
+                ticklabels_strs.append(str(val))
+
+        #major ticks at integer positions
+        #no minor ticks
+        ax.set_xticks(axis.edges)
+        ax.set_xticks([], minor=True)
+        ax.set_xticklabels([''] + ticklabels_strs, 
+                           rotation=45, ha='right',
+                           fontsize=14)
+        ax.grid(axis='x', which='major', linestyle='--', alpha=0.7)
 
     add_text(ax, cut, extratext)
 

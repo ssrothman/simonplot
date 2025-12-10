@@ -28,6 +28,39 @@ class AbstractBinning:
                         transform: Union[str, None]=None) -> hist.axis.AxesMixin:
         raise NotImplementedError()
 
+class AutoIntCategoryBinning(AbstractBinning):
+    def __init__(self, label_lookup : dict[str, str] = {}):
+        self._label_lookup = label_lookup
+
+    @property
+    def label_lookup(self) -> dict[str, str]:
+        return self._label_lookup
+
+    def build_auto_axis(self, 
+                        variables: List[AbstractVariable], 
+                        cuts: List[AbstractCut], 
+                        datasets: List[AbstractDataset], 
+                        transform: Union[str, None]=None) -> hist.axis.AxesMixin:
+        values = []
+        lens = []
+        for var, cut, dataset in zip(variables, cuts, datasets):
+            needed_columns = list(set(var.columns + cut.columns))
+            dataset.ensure_columns(needed_columns)
+            v = var.evaluate(dataset)
+            c = cut.evaluate(dataset)
+            values.append(ak.flatten(v[c], axis=None))
+            lens.append(len(values[-1]))
+
+        all_values = ak.to_numpy(ak.flatten(values, axis=None))
+        unique_values = np.unique(all_values)
+
+        return hist.axis.IntCategory(
+            unique_values.tolist(),
+            name=variables[0].key,
+            label=lookup_axis_label(variables[0].key),
+            growth=False
+        )
+
 class AutoBinning(AbstractBinning):
     def __init__(self):
         pass
@@ -51,12 +84,17 @@ class AutoBinning(AbstractBinning):
         minval = np.nanmin(all_values, axis=None)
         maxval = np.nanmax(all_values, axis=None)
 
+        if minval == maxval:
+            minval -= 0.5
+            maxval += 0.5
+
         minlen = min(lens)
 
         dtype = all_values.dtype
         if np.issubdtype(dtype, np.floating):
             #heuristic for a reasonable number of bins
             nbins = max(50, int(np.sqrt(minlen)))
+
             return RegularBinning(
                 nbins=nbins,
                 low=minval,
@@ -66,6 +104,7 @@ class AutoBinning(AbstractBinning):
         else:
             #one bin for each integer value
             nbins = int(maxval - minval + 1)
+
             if transform is not None:
                 raise ValueError("Cannot use transform in AutoBinning with non-floating point variable")
             return RegularBinning(
@@ -74,7 +113,6 @@ class AutoBinning(AbstractBinning):
                 high=maxval+0.5,
                 transform=transform
             ).build_axis(variables[0])
-            
 
 class DefaultBinning(AbstractBinning):
     def __init__(self):
@@ -146,3 +184,4 @@ class ExplicitBinning(AbstractBinning):
             name=variable.key,
             label=lookup_axis_label(variable.key)
         )
+    
