@@ -93,6 +93,8 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
 
     if output_path is not None:
         savefig(fig, output_path)
+    else:
+        plt.show()
         
     plt.close(fig)
 
