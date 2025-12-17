@@ -18,8 +18,20 @@ class AbstractCut:
 
     @property
     def plottext(self):
+        if hasattr(self, "_plottext"):
+            return self._plottext
+        else:
+            return self._auto_plottext()
+
+    def _auto_plottext(self):
         raise NotImplementedError()
-    
+
+    def override_plottext(self, plottext):
+        self._plottext = plottext
+
+    def clear_override_plottext(self):
+        del self._plottext
+
     #equality operator
     def __eq__(self, other):
         #error message says what subclass raised the error
@@ -43,8 +55,7 @@ class NoCut(AbstractCut):
     def key(self):
         return "none"
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         return "Inclusive"
 
     def __eq__(self, other):
@@ -73,8 +84,7 @@ class EqualsCut(AbstractCut):
     def key(self):
         return "%sEQ%g"%(self.variable.key, self.value)
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         return "%s$ = %g$"%(self.variable.label, 
                             self.value)
     
@@ -117,8 +127,7 @@ class TwoSidedCut(AbstractCut):
     def key(self):
         return "%sLT%gGT%g"%(self.variable.key, self.high, self.low)
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         return "$%g \\leq $%s$ < %g$"%(
                 self.low,
                 self.variable.label, 
@@ -147,8 +156,7 @@ class GreaterThanCut(AbstractCut):
     def key(self):
         return "%sGT%g"%(self.variable.key, self.value)
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         return "%s$ \\geq %g$"%(self.variable.label, 
                             self.value)
     
@@ -180,8 +188,7 @@ class LessThanCut(AbstractCut):
     def key(self):
         return "%sLT%g"%(self.variable.key, self.value)
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         return "%s$ < %g$"%(self.variable.label, 
                             self.value)
 
@@ -217,8 +224,7 @@ class AndCuts(AbstractCut):
             result += "_AND_" + cut.key
         return result
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         result = self.cuts[0].plottext
         for cut in self.cuts[1:]:
             result += '\n' + cut.plottext
@@ -291,8 +297,7 @@ class ConcatCut(AbstractCut):
     def key(self):
         return self._keycut.key
 
-    @property
-    def plottext(self):
+    def _auto_plottext(self):
         return self._keycut.plottext
 
     def set_collection_name(self, collection_name):
