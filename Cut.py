@@ -304,6 +304,7 @@ class ConcatCut(AbstractCut):
         print("WARNING: overwriting collection name for all cuts in ConcatCut object")
         for cut in self.cuts:
             cut.set_collection_name(collection_name)
+        self._keycut.set_collection_name(collection_name)
 
     def __eq__(self, other):
         if type(other) is not ConcatCut:

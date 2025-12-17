@@ -137,6 +137,7 @@ class ConcatVariable(AbstractVariable):
         print("WARNING: overwriting collection name for all variables in ConcatVariable object")
         for var in self.vars_:
             var.set_collection_name(collection_name)
+        self._keyvar.set_collection_name(collection_name)
 
 
 class AkNumVariable(AbstractVariable):
