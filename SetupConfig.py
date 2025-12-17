@@ -6,22 +6,15 @@ with open("simon_mpl_config.json", "r") as f:
 
 def strip_collection_names(axiskey:str) -> str:
     split_wrt_dots = axiskey.split('.')
-    print("SPLIT_WRT_DOTS:")
-    for part in split_wrt_dots:
-        print(f"  PART: {part}")
 
     stripped_parts = []
-    print("processing parts...")
     for part in split_wrt_dots[:-1]:
-        print("  part:", part,"splits into:")
-        #split wrt underscores, parentheses, and commas
         splitted_part = re.split(r'[_(),]', part)
-        print("    ", splitted_part)
 
         #we want to remove the last element,
         #but put back in all the separators that were removed
         stripped_parts.append(part[:-len(splitted_part[-1])])
-        print("  stripped part:", stripped_parts[-1])
+
     stripped_axiskey = ''.join(stripped_parts)
     stripped_axiskey+=split_wrt_dots[-1]  #add last part back
 
@@ -91,5 +84,6 @@ def lookup_axis_label(axiskey: str) -> str:
             if attempt_regex_match(key_pattern, stripped_axiskey):
                 return label
 
+    print("WARNING: No axis label in config for key:", axiskey)
     return axiskey  #default to axiskey if no match found
         
