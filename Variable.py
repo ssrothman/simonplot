@@ -1,6 +1,7 @@
 from .SetupConfig import config, lookup_axis_label
 import copy
 from typing import List
+from .coordinates_util import xyz_to_eta_phi
 
 def variable_from_string(name):
     if 'over' in name:
@@ -523,3 +524,71 @@ class Distance3dVariable(AbstractVariable):
         self.dyvar.set_collection_name(collection_name)
         self.dzvar.set_collection_name(collection_name)
         self.magnitude_var.set_collection_name(collection_name)
+
+class EtaFromXYZVariable(AbstractVariable):
+    def __init__(self, x, y, z):
+        self._x = x
+        self._y = y
+        self._z = z
+
+    @property 
+    def columns(self):
+        return list(set(self._x.columns + self._y.columns + self._z.columns))
+    
+    @property
+    def key(self):
+        return "ETA(%s_%s_%s)" % (self._x.key, self._y.key, self._z.key)
+    
+    def __eq__(self, other):
+        if type(other) is not EtaFromXYZVariable:
+            return False
+        
+        return (self._x == other._x and 
+                self._y == other._y and
+                self._z == other._z)
+    
+    def set_collection_name(self, collection_name):
+        self._x.set_collection_name(collection_name)
+        self._y.set_collection_name(collection_name)
+        self._z.set_collection_name(collection_name)
+
+    def evaluate(self, dataset):
+        xval = self._x.evaluate(dataset)
+        yval = self._y.evaluate(dataset)
+        zval = self._z.evaluate(dataset)
+
+        return xyz_to_eta_phi(xval, yval, zval)[0]
+    
+class PhiFromXYZVariable(AbstractVariable):
+    def __init__(self, x, y, z):
+        self._x = x
+        self._y = y
+        self._z = z
+
+    @property 
+    def columns(self):
+        return list(set(self._x.columns + self._y.columns + self._z.columns))
+    
+    @property
+    def key(self):
+        return "PHI(%s_%s_%s)" % (self._x.key, self._y.key, self._z.key)
+    
+    def __eq__(self, other):
+        if type(other) is not EtaFromXYZVariable:
+            return False
+        
+        return (self._x == other._x and 
+                self._y == other._y and
+                self._z == other._z)
+    
+    def set_collection_name(self, collection_name):
+        self._x.set_collection_name(collection_name)
+        self._y.set_collection_name(collection_name)
+        self._z.set_collection_name(collection_name)
+
+    def evaluate(self, dataset):
+        xval = self._x.evaluate(dataset)
+        yval = self._y.evaluate(dataset)
+        zval = self._z.evaluate(dataset)
+
+        return xyz_to_eta_phi(xval, yval, zval)[1]
