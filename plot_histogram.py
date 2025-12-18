@@ -6,10 +6,11 @@ from .Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCatego
 
 from .histplot import simon_histplot
 
-from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend
+from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad
 
 import hist
 import matplotlib.pyplot as plt
+import matplotlib.axes
 import awkward as ak
 
 from typing import List, Union
@@ -24,6 +25,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
                    density: bool = False,
                    logx: bool = False,
                    logy: bool = False,
+                   no_ratiopad : bool = False,
                    output_path: Union[str, None] = None):
     
     if labels_ is None or len(labels_) == 1:
@@ -35,40 +37,96 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
         labels_ = ['']
 
     variable, cut, dataset, labels = ensure_same_length(variable_, cut_, dataset_, labels_)
-   
+
+    if (type(dataset_) is list and (len(dataset_) > 1) or len(dataset) == 1):
+        style_from_dset = True
+    else:
+        style_from_dset = False
+
+    if no_ratiopad or len(variable) == 1:
+        do_ratiopad = False
+    else:
+        do_ratiopad = True
+
     if type(binning) is AutoBinning or type(binning) is AutoIntCategoryBinning:
-        axis = binning.build_auto_axis(variable, cut, dataset)
+        if logx:
+            transform='log'
+        else:
+            transform=None
+
+        axis = binning.build_auto_axis(variable, cut, dataset, transform=transform)
     elif type(binning) is DefaultBinning:
         axis = binning.build_default_axis(variable[0])
     else:
         axis = binning.build_axis(variable[0])
 
-    fig, ax = setup_canvas()
-    add_cms_legend(ax, isdata)
+    fig = setup_canvas()
 
-    vals = []
-    for v, c, d, l in zip(variable, cut, dataset, labels):
-        _, value = plot_histogram_(v, c, d, axis, density, l, ax)
-        vals.append(value)
-
-    ax.set_xlabel(variable[0].label)
-    if density:
-        ax.set_ylabel('Density')
+    if do_ratiopad:
+        ax_main, ax_pad = make_axes_withpad(fig)
     else:
-        ax.set_ylabel('Counts')
+        ax_main = make_oneax(fig)
+
+    add_cms_legend(ax_main, isdata)
+
+    for v, c, d, l in zip(variable, cut, dataset, labels):
+        if style_from_dset and d.label is not None:
+            nolegend = False #force legend if dataset has label
+
+        _, _ = d.plot_histogram(
+            v, c, axis, 
+            density, ax_main, 
+            style_from_dset,
+            label=l
+        )
+
+    if do_ratiopad:
+        dnom = dataset[0]
+
+        for v, c, d, l in zip(variable[1:], cut[1:], dataset[1:], labels[1:]):
+            d.plot_ratio_to(
+                dnom,
+                density = density,
+                ax = ax_pad, # pyright: ignore[reportPossiblyUnboundVariable]
+                own_style = style_from_dset
+            )
+
+    if do_ratiopad:
+        ax_pad.set_xlabel(variable[0].label) # pyright: ignore[reportPossiblyUnboundVariable]
+        if nolegend:
+            ax_pad.set_ylabel("Ratio") # pyright: ignore[reportPossiblyUnboundVariable]
+        else:
+            if style_from_dset:
+                denomlabel = dataset[0].label
+            else:
+                denomlabel = labels[0]
+            ax_pad.set_ylabel('Ratio to ' + denomlabel) # pyright: ignore[reportPossiblyUnboundVariable]
+
+    else:
+        ax_main.set_xlabel(variable[0].label)
+
+    if density:
+        ax_main.set_ylabel('Density')
+    else:
+        ax_main.set_ylabel('Counts')
 
     if logx:
-        ax.set_xscale('log')
+        ax_main.set_xscale('log')
     if logy:
-        ax.set_yscale('log')
+        ax_main.set_yscale('log')
 
     if type(variable[0]) is RatioVariable:
-        ax.axvline(1.0, color='k', linestyle='dashed')
+        ax_main.axvline(1.0, color='k', linestyle='dashed')
     elif type(variable[0]) is DifferenceVariable or type(variable[0]) is RelativeResolutionVariable:
-        ax.axvline(0.0, color='k', linestyle='dashed')
+        ax_main.axvline(0.0, color='k', linestyle='dashed')
+
+    if do_ratiopad:
+        ax_pad.axhline(1.0, color='k', linestyle='dashed') # pyright: ignore[reportPossiblyUnboundVariable]
+        ax_pad.grid(axis='y', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
 
     if type(binning) is AutoIntCategoryBinning:
-        ticklabels_ints = axis.value(axis.edges[:-1]) # get category labels
+        # get category label [pylance is confused :(]
+        ticklabels_ints = axis.value(axis.edges[:-1]) # pyright: ignore[reportAttributeAccessIssue] 
         ticklabels_strs = []
         for val in ticklabels_ints:
             if str(val) in binning.label_lookup:
@@ -78,16 +136,24 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
 
         #major ticks at integer positions
         #no minor ticks
-        ax.set_xticks(axis.edges)
-        ax.set_xticks([], minor=True)
-        ax.set_xticklabels([''] + ticklabels_strs, 
-                           rotation=45, ha='right',
-                           fontsize=14)
-        ax.grid(axis='x', which='major', linestyle='--', alpha=0.7)
+        if do_ratiopad:
+            ax_pad.set_xticks(axis.edges) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
+            ax_pad.set_xticks([], minor=True) # pyright: ignore[reportPossiblyUnboundVariable]
+            ax_pad.set_xticklabels([''] + ticklabels_strs,  # pyright: ignore[reportPossiblyUnboundVariable]
+                            rotation=45, ha='right', 
+                            fontsize=14) 
+            ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
+        else:
+            ax_main.set_xticks(axis.edges) # pyright: ignore[reportAttributeAccessIssue]
+            ax_main.set_xticks([], minor=True)
+            ax_main.set_xticklabels([''] + ticklabels_strs, 
+                            rotation=45, ha='right',
+                            fontsize=14)
+            ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.7)
 
-    add_text(ax, cut, extratext)
+    add_text(ax_main, cut, extratext)
 
-    draw_legend(ax, nolegend)
+    draw_legend(ax_main, nolegend)
 
     plt.tight_layout()
 
@@ -97,32 +163,3 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
         plt.show()
         
     plt.close(fig)
-
-def plot_histogram_(variable: AbstractVariable, 
-                  cut: AbstractCut, 
-                  dataset: AbstractDataset,
-                  axis : hist.axis.AxesMixin,
-                  density: bool,
-                  label: str,
-                  ax : plt.Axes):
-   
-    needed_columns = list(set(variable.columns + cut.columns))
-    dataset.ensure_columns(needed_columns)
-
-    cut = cut.evaluate(dataset)
-    val = variable.evaluate(dataset)
-
-    H = hist.Hist(
-        axis,
-        storage=hist.storage.Weight()
-    )
-    H.fill(
-        ak.flatten(val[cut], axis=None)
-    )
-
-    return simon_histplot(
-        H, 
-        ax = ax,
-        density=density,
-        label=label
-    )
