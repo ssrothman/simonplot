@@ -49,7 +49,8 @@ class NoCut(AbstractCut):
         return []
 
     def evaluate(self, dataset):
-        return np.ones(dataset.num_rows, dtype=bool)
+        #return np.ones(dataset.num_rows, dtype=bool)
+        return slice(None)
 
     @property
     def key(self):
