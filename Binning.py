@@ -48,10 +48,10 @@ class AutoIntCategoryBinning(AbstractBinning):
             dataset.ensure_columns(needed_columns)
             v = var.evaluate(dataset)
             c = cut.evaluate(dataset)
-            values.append(ak.flatten(v[c], axis=None))
+            values.append(ak.flatten(v[c], axis=None)) # pyright: ignore[reportArgumentType]
             lens.append(len(values[-1]))
 
-        all_values = ak.to_numpy(ak.flatten(values, axis=None))
+        all_values = ak.to_numpy(ak.flatten(values, axis=None)) # pyright: ignore[reportArgumentType]
         unique_values = np.unique(all_values)
 
         return hist.axis.IntCategory(
@@ -75,20 +75,25 @@ class AutoBinning(AbstractBinning):
                         cuts: List[AbstractCut], 
                         datasets: List[AbstractDataset], 
                         transform: Union[str, None]=None) -> hist.axis.AxesMixin:
-        values = []
+
         lens = []
+        minvals = []
+        maxvals = []
+        dtypes = []
         for var, cut, dataset in zip(variables, cuts, datasets):
             needed_columns = list(set(var.columns + cut.columns))
             dataset.ensure_columns(needed_columns)
             v = var.evaluate(dataset)
             c = cut.evaluate(dataset)
-            values.append(ak.flatten(v[c], axis=None))
-            lens.append(len(values[-1]))
+            values = ak.to_numpy(ak.flatten(v[c], axis=None)) # pyright: ignore[reportArgumentType]
+            values = values[np.isfinite(values)]
+            lens.append(len(values))
+            minvals.append(np.nanmin(values))
+            maxvals.append(np.nanmax(values))
+            dtypes.append(values.dtype)
 
-        all_values = ak.to_numpy(ak.flatten(values, axis=None))
-        all_values = all_values[np.isfinite(all_values)]
-        minval = np.nanmin(all_values, axis=None)
-        maxval = np.nanmax(all_values, axis=None)
+        minval = np.min(minvals, axis=None)
+        maxval = np.max(maxvals, axis=None)
 
         if minval == maxval:
             minval -= 0.5
@@ -96,7 +101,7 @@ class AutoBinning(AbstractBinning):
 
         minlen = min(lens)
 
-        dtype = all_values.dtype
+        dtype = dtypes[0]
 
         if self._force_low is not None:
             minval = self._force_low
@@ -105,7 +110,7 @@ class AutoBinning(AbstractBinning):
 
         if np.issubdtype(dtype, np.floating):
             #heuristic for a reasonable number of bins
-            nbins = max(50, int(np.sqrt(minlen)))
+            nbins = min(max(50, int(np.power(minlen, 1/3))), 200)
 
             return RegularBinning(
                 nbins=nbins,
@@ -154,7 +159,7 @@ class RegularBinning(AbstractBinning):
         if type(transform) is str:
             self._transform = transform_from_string(transform)
         else:
-            self._transform = transform
+            self._transform = None
 
     @property
     def nbins(self) -> int:
