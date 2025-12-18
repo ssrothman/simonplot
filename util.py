@@ -1,4 +1,6 @@
 import matplotlib
+import matplotlib.figure
+import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
 import mplhep as hep
@@ -12,11 +14,23 @@ from .place_text import place_text
 hep.style.use(hep.style.CMS)
 matplotlib.rcParams['savefig.dpi'] = 300
 
-def setup_canvas():
+def setup_canvas() -> matplotlib.figure.Figure:
     fig = plt.figure(figsize=config['figsize'])
-    ax = fig.add_subplot(1,1,1)
 
-    return fig, ax
+    return fig
+
+def make_oneax(fig: matplotlib.figure.Figure) -> matplotlib.axes.Axes:
+    ax = fig.add_subplot(1,1,1)
+    return ax
+
+def make_axes_withpad(fig: matplotlib.figure.Figure):
+    (ax_main, ax_pad) = fig.subplots(
+        2, 1,
+        gridspec_kw={'height_ratios': [1, config['ratiopad']['height']],
+                     'hspace': config['ratiopad']['hspace']},
+        sharex=True
+    )
+    return (ax_main, ax_pad)
 
 def add_cms_legend(ax, isdata: bool):
     if isdata:
@@ -57,7 +71,7 @@ def ensure_same_length(*args):
 
     return result
 
-def add_text(ax : plt.Axes, cut: Union[AbstractCut, List[AbstractCut]], extratext: Union[str, None]=None):
+def add_text(ax : matplotlib.axes.Axes, cut: Union[AbstractCut, List[AbstractCut]], extratext: Union[str, None]=None):
     ccut = common_cuts(cut)
     if type(ccut) is not NoCut:
         thetext = ccut.plottext
@@ -77,7 +91,7 @@ def add_text(ax : plt.Axes, cut: Union[AbstractCut, List[AbstractCut]], extratex
             'alpha': 0.8
         })
 
-def draw_legend(ax: plt.Axes, nolegend: bool, scale: float=1.0, loc: Union[str, int, tuple] ='best'):
+def draw_legend(ax: matplotlib.axes.Axes, nolegend: bool, scale: float=1.0, loc: Union[str, int, tuple] ='best'):
     if not nolegend:
         if type(loc) in [int, str]:
             ldg = ax.legend(
@@ -104,7 +118,9 @@ def draw_legend(ax: plt.Axes, nolegend: bool, scale: float=1.0, loc: Union[str, 
         #if markers are tiny, increase their size in legend
         for handle in ldg.legend_handles: # pyright: ignore[reportAttributeAccessIssue]
             if hasattr(handle, 'get_sizes'):
-                minsize = np.min(handle.get_sizes())
+                
+                minsize = np.min(handle.get_sizes()) # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
+
                 if minsize < 25: #arbitrary threshold. NB this is the square of the markersize
 
                     #remove existing legend, and recursively callback with a larger markerscale
