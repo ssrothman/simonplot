@@ -138,7 +138,6 @@ def _simon_histplot_ratio(vals_num, errs_num,
         ) * ratio
 
     if pulls:
-        print("PULLS")
         ratio = ratio-1
         ratio = ratio/ratio_err
         ratio_err = np.ones_like(ratio)
