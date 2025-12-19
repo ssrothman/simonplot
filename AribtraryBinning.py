@@ -229,7 +229,7 @@ class _BinningBlock:
 
         edges = self.ax_details[name]['edges']
         for i, e in enumerate(edges):
-            if np.abs(e-edge) < 1e-5:
+            if np.abs(e-edge) < 1e-5 or e == edge: #== for inf values
                 return i
 
         print()
@@ -1051,7 +1051,7 @@ class ArbitraryBinning:
         :return: A tuple containing the fluxes, shapes, and a new ArbitraryBinning instance representing the flux binning
         :rtype: Tuple[ndarray[Any, Any], ndarray[Any, Any], ArbitraryBinning]
         '''
-        axisblocks = self._get_blocks(axes)
+        axisblocks = self.get_blocks(axes)
         #if type(data) is np.ndarray:
         shapes = np.ones(data.shape, dtype=data.dtype)
         fluxes = np.empty(len(axisblocks), dtype=data.dtype)
@@ -1107,7 +1107,7 @@ class ArbitraryBinning:
         :rtype: ndarray[Any, Any]
         '''
         axes = fluxbinning.axis_names
-        axisblocks = self._get_blocks(axes)
+        axisblocks = self.get_blocks(axes)
 
         #if type(fluxes) is torch.Tensor:
         #    result = torch.empty(shapes.shape, dtype=shapes.dtype, device=shapes.device)
@@ -1159,7 +1159,7 @@ class ArbitraryBinning:
         return theslice
 
 
-    def _get_blocks(self, axes : List[str]) -> List[dict]:
+    def get_blocks(self, axes : List[str]) -> List[dict]:
         '''
         Get the the indices corresonding to all slices along axes specified in `axes`.
         For example, say you have a 3D binning in (x,y,z) and you call _get_blocks(['x', 'y']).
