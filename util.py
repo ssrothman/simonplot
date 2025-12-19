@@ -1,6 +1,9 @@
 import matplotlib
 import matplotlib.figure
 import matplotlib.axes
+import matplotlib.lines
+import matplotlib.container
+import matplotlib.patches
 import matplotlib.pyplot as plt
 import numpy as np
 import mplhep as hep
@@ -32,11 +35,12 @@ def make_axes_withpad(fig: matplotlib.figure.Figure):
     )
     return (ax_main, ax_pad)
 
-def add_cms_legend(ax, isdata: bool):
+def add_cms_legend(ax, isdata: bool, lumi: Union[float, None]=None):
     if isdata:
         hep.cms.label(ax=ax, data=True, 
-                      lumi=config.get('lumi', None),
-                      year=config.get('year', None),
+                      lumi='%0.2f'%lumi,
+                      year= config.get('year', None),
+                      com = config.get('com', None),
                       label=config['cms_label'])
     else:
         hep.cms.label(ax=ax, data=False, 
@@ -127,3 +131,11 @@ def draw_legend(ax: matplotlib.axes.Axes, nolegend: bool, scale: float=1.0, loc:
                     ldg.remove()
                     draw_legend(ax, nolegend, scale=scale+1, loc=loc)
                     break
+
+def get_artist_color(artist : Union[matplotlib.container.ErrorbarContainer, matplotlib.patches.Patch, matplotlib.lines.Line2D]):
+    if isinstance(artist, matplotlib.patches.Patch):
+        return artist.get_facecolor()
+    elif isinstance(artist, matplotlib.container.ErrorbarContainer):
+        return get_artist_color(artist.lines[0])
+    elif isinstance(artist, matplotlib.lines.Line2D):
+        return artist.get_color()

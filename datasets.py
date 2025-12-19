@@ -20,7 +20,7 @@ class AbstractDataset:
         self._xsec = None
         self._isMC = True
 
-        self.override_nevts = None
+        self._override_nevts = None
 
         self._weight = 1.0
 
@@ -65,12 +65,12 @@ class AbstractDataset:
         self._lumi = None
 
     def override_num_events(self, nevts):
-        self.override_nevts = nevts
+        self._override_nevts = nevts
 
     @property
     def num_events(self):
-        if self.override_nevts is not None:
-            return self.override_nevts
+        if self._override_nevts is not None:
+            return self._override_nevts
         else:
             return self.num_rows
 
@@ -103,21 +103,26 @@ class AbstractDataset:
             if self._xsec is None:
                 raise RuntimeError("Dataset.compute_weight: xsec not defined for MC dataset! Call set_xsec() first.")
             
-            self._weight = (target_lumi * self._xsec) / self.num_events
+            self._weight = (target_lumi * 1000 * self._xsec) / self.num_events
         
         else:
             self._weight = 1.0
 
-    def fill_hist(self,
+    def _fill_hist(self,
                   variable: AbstractVariable, 
                   cut: AbstractCut, 
+                  weight : AbstractVariable,
                   axis : hist.axis.AxesMixin):
        
-        needed_columns = list(set(variable.columns + cut.columns))
+        needed_columns = list(set(variable.columns + cut.columns + weight.columns))
         self.ensure_columns(needed_columns)
 
         cut = cut.evaluate(self)
         val = variable.evaluate(self)
+        wgt = weight.evaluate(self)
+
+        #broadcast wgt to same shape as val
+        wgt = ak.broadcast_arrays(val, wgt)[1]
 
         self.H = hist.Hist(
             axis, # pyright: ignore[reportArgumentType]
@@ -125,19 +130,21 @@ class AbstractDataset:
         )
         self.H.fill(
             ak.flatten(val[cut], axis=None), # pyright: ignore[reportArgumentType]
-            weight = self.weight
+            weight = self.weight * ak.flatten(wgt[cut], axis=None) # pyright: ignore[reportArgumentType]
         )
 
-    def plot_histogram(self,
+    def _plot_histogram(self,
                        variable: AbstractVariable, 
                        cut: AbstractCut, 
+                       weight : AbstractVariable,
                        axis : hist.axis.AxesMixin,
                        density: bool,
                        ax : matplotlib.axes.Axes,
                        own_style : bool,
+                       fillbetween : Union[float, None],
                        **mpl_kwargs):
 
-        self.fill_hist(variable, cut, axis)
+        self._fill_hist(variable, cut, weight, axis)
 
         if own_style:
             mpl_kwargs['label'] = self.label
@@ -147,22 +154,23 @@ class AbstractDataset:
             self.H, 
             ax = ax,
             density=density,
+            fillbetween = fillbetween,
             **mpl_kwargs
-        )
+        ), self.H
     
-    def plot_ratio_to(self,
-                      other : 'AbstractDataset',
-                      density : bool,
-                      ax : matplotlib.axes.Axes,
-                      own_style : bool,
-                      **mpl_kwargs):
+    def _plot_ratio(self,
+                    H1 : hist.Hist,
+                    H2 : hist.Hist,
+                    density : bool,
+                    ax : matplotlib.axes.Axes,
+                    own_style : bool,
+                    **mpl_kwargs):
         
         if own_style:
-            mpl_kwargs['label'] = self.label
             mpl_kwargs['color'] = self.color
 
         return simon_histplot_ratio(
-            self.H, other.H,
+            H1, H2,
             ax = ax,
             density=density,
             **mpl_kwargs
@@ -180,6 +188,9 @@ class DatasetStack(AbstractDataset):
     def set_xsec(self, xsec):
         raise RuntimeError("DatasetStack.set_xsec: Cannot set xsec on DatasetStack!")
     
+    def override_num_events(self, nevts):
+        raise RuntimeError("DatasetStack.override_num_events: Cannot override number of events on DatasetStack!")
+
     @property
     def isMC(self):
         # DatasetStack is MC if all datasets are MC
@@ -231,16 +242,14 @@ class DatasetStack(AbstractDataset):
         for d in self._datasets:
             d.compute_weight(target_lumi)
 
-    def fill_hist(self,
+    def _fill_hist(self,
                   variable: AbstractVariable, 
                   cut: AbstractCut, 
+                  weight : AbstractVariable,
                   axis : hist.axis.AxesMixin):
        
-        needed_columns = list(set(variable.columns + cut.columns))
-        self.ensure_columns(needed_columns)
-
-        result = variable.evaluate(self)[cut.evaluate(self)]
-        wt = self.weight
+        for d in self._datasets:
+            d._fill_hist(variable, cut, weight, axis)
 
         self.H = hist.Hist(
             axis, # pyright: ignore[reportArgumentType]
@@ -248,11 +257,51 @@ class DatasetStack(AbstractDataset):
         )
 
         for i in range(len(self._datasets)):
-            self.H.fill(
-                ak.flatten(result[i], axis=None), # pyright: ignore[reportArgumentType]
-                weight = self.weight[i]
-            )
+            self.H += self._datasets[i].H
 
+    def _plot_histogram(self,
+                       variable: AbstractVariable, 
+                       cut: AbstractCut, 
+                       weight : AbstractVariable,
+                       axis : hist.axis.AxesMixin,
+                       density: bool,
+                       ax : matplotlib.axes.Axes,
+                       own_style : bool,
+                       fillbetween : Union[float, None],
+                       **mpl_kwargs):
+        
+        self._fill_hist(variable, cut, weight, axis)
+
+        if fillbetween is not None and not own_style:
+            raise ValueError("fillbetween is only supported when own_style is True")
+
+        if own_style and fillbetween is None:
+            mpl_kwargs['label'] = self.label
+            mpl_kwargs['color'] = self.color
+
+        prev = fillbetween
+        if prev is not None:
+            for d in self._datasets:
+                (artist, vals), _ = d._plot_histogram(
+                    variable, cut, weight, axis,
+                    density, ax,
+                    own_style=True,
+                    fillbetween = prev,
+                    **mpl_kwargs
+                )
+                prev = vals
+
+            return (artist, vals), self.H # pyright: ignore[reportPossiblyUnboundVariable]
+        else:        
+
+            return simon_histplot(
+                self.H, 
+                ax = ax,
+                density=density,
+                fillbetween = fillbetween,
+                **mpl_kwargs
+            ), self.H
+    
 class NanoEventsDataset(AbstractDataset):
     def __init__(self, fname, **options):
         super().__init__()
