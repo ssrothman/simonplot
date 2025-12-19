@@ -166,6 +166,9 @@ def strip_units(s: str) -> str:
     else:
         return s.strip()
     
+def strip_dollar_signs(s: str) -> str:
+    return s.replace('$', '')
+
 def xlabel_from_binning(binning : ArbitraryBinning) -> str:
     if binning.Nax == 1:
         return lookup_axis_label(binning.axis_names[0])
@@ -175,69 +178,75 @@ def xlabel_from_binning(binning : ArbitraryBinning) -> str:
 def make_fancy_prebinned_labels(ax_main : matplotlib.axes.Axes, 
                                 ax_pad : Union[matplotlib.axes.Axes, None],
                                 axis : ArbitraryBinning):
-        cfg = config['fancy_prebinned_labels']
-        if not cfg['enabled']:
-            return
-        
-        if axis.Nax > cfg['max_ndim']:
-            return
+    original_xlim = ax_main.get_xlim()
 
-        blocks = axis.get_blocks([axis.axis_names[0]])
-       
-        all_contiguous = True
-        for block in blocks:
-            if not isinstance(block['slice'], slice):
-                all_contiguous = False
-                break
-        
-        if not all_contiguous:
-            print("WARNING: fancy prebinned labels only supported for contiguous blocks along axis")
-            return
-        
-        major_ticks = []
-        for block in blocks:
-            start = block['slice'].start 
-            major_ticks.append(start - 0.5)
-        major_ticks.append(axis.total_size - 0.5)
-        major_ticks = np.asarray(major_ticks)
-        ax_main.set_xticks(major_ticks, minor=False, labels=['']*len(major_ticks))
-        ax_main.set_xticks(np.arange(axis.total_size + 1) - 0.5, minor=True)
-        ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.9)
+    cfg = config['fancy_prebinned_labels']
+    if not cfg['enabled']:
+        return
+    
+    if axis.Nax > cfg['max_ndim'] or axis.Nax == 1:
+        return
 
-        if ax_pad is not None:
-            ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.9) # pyright: ignore[reportPossiblyUnboundVariable]
-            bottom_ax = ax_pad # pyright: ignore[reportPossiblyUnboundVariable]
-            
-            ax2 = ax_pad.twiny()# pyright: ignore[reportPossiblyUnboundVariable]
+    blocks = axis.get_blocks([axis.axis_names[0]])
+    
+    all_contiguous = True
+    for block in blocks:
+        if not isinstance(block['slice'], slice):
+            all_contiguous = False
+            break
+    
+    if not all_contiguous:
+        print("WARNING: fancy prebinned labels only supported for contiguous blocks along axis")
+        return
+    
+    major_ticks = []
+    for block in blocks:
+        start = block['slice'].start 
+        major_ticks.append(start - 0.5)
+    major_ticks.append(axis.total_size - 0.5)
+    major_ticks = np.asarray(major_ticks)
+    ax_main.set_xticks(major_ticks, minor=False, labels=['']*len(major_ticks))
+    ax_main.set_xticks(np.arange(axis.total_size + 1) - 0.5, minor=True)
+    ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.9)
+
+    if ax_pad is not None:
+        ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.9) # pyright: ignore[reportPossiblyUnboundVariable]
+        bottom_ax = ax_pad # pyright: ignore[reportPossiblyUnboundVariable]
+        
+        ax2 = ax_pad.twiny()# pyright: ignore[reportPossiblyUnboundVariable]
+    else:
+        ax2 = ax_main.twiny()
+        bottom_ax = ax_main
+
+    bottom_ax.tick_params(direction='inout', which='major', 
+                            axis='x', length=cfg['ticksize']) 
+
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['bottom'].set_visible(False)
+    ax2.spines['top'].set_position(('axes', 0.0))
+    ax2.set_xlim(ax_main.get_xlim())
+    major_tick_centers = (major_ticks[:-1] + major_ticks[1:]) / 2
+    major_tick_labels = []
+    axname = lookup_axis_label(axis.axis_names[0])
+    axname = strip_units(axname)
+    for block in blocks:
+        low = block['edges'][axis.axis_names[0]][0]
+        high = block['edges'][axis.axis_names[0]][1]
+        if low == -np.inf:
+            major_tick_labels.append('%s$ \\leq %0.3g$' % (axname, high))
+        elif high == np.inf:
+            major_tick_labels.append('$%0.3g < $%s' % (low, axname))
         else:
-            ax2 = ax_main.twiny()
-            bottom_ax = ax_main
+            major_tick_labels.append('$%0.3g < $%s$ \\leq %0.3g$' % (low, axname, high))
 
-        bottom_ax.tick_params(direction='inout', which='major', 
-                              axis='x', length=cfg['ticksize']) 
-
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['bottom'].set_visible(False)
-        ax2.spines['top'].set_position(('axes', 0.0))
-        ax2.set_xlim(ax_main.get_xlim())
-        major_tick_centers = (major_ticks[:-1] + major_ticks[1:]) / 2
-        major_tick_labels = []
-        axname = lookup_axis_label(axis.axis_names[0])
-        axname = strip_units(axname)
-        for block in blocks:
-            low = block['edges'][axis.axis_names[0]][0]
-            high = block['edges'][axis.axis_names[0]][1]
-            if low == -np.inf:
-                major_tick_labels.append('%s$ \\leq %0.3g$' % (axname, high))
-            elif high == np.inf:
-                major_tick_labels.append('$%0.3g < $%s' % (low, axname))
-            else:
-                major_tick_labels.append('$%0.3g < $%s$ \\leq %0.3g$' % (low, axname, high))
-
-        ax2.set_xticks(major_tick_centers, minor=False,
-                        labels=major_tick_labels) #dummy labels
-        ax2.set_xticks([], minor=True)
-        ax2.tick_params(axis='x', direction='in', which='both',
-                        labelbottom=True, labeltop=False,
-                        labelsize=cfg['fontsize'],
-                        length=0)
+    ax2.set_xticks(major_tick_centers, minor=False,
+                    labels=major_tick_labels) #dummy labels
+    ax2.set_xticks([], minor=True)
+    ax2.tick_params(axis='x', direction='in', which='both',
+                    labelbottom=True, labeltop=False,
+                    labelsize=cfg['fontsize'],
+                    length=0)
+    
+    ax_main.set_xlim(original_xlim)
+    ax2.set_xlim(original_xlim)
+    return ax2

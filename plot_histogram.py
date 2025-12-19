@@ -10,7 +10,7 @@ from .AribtraryBinning import ArbitraryBinning
 
 from .histplot import simon_histplot
 
-from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning, make_fancy_prebinned_labels
+from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning, make_fancy_prebinned_labels, strip_dollar_signs
 
 import hist
 import matplotlib.pyplot as plt
@@ -85,6 +85,11 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
             logx = check_auto_logx(axis.axis_names[0])
         else:
             logx = False
+
+    if isinstance(axis, ArbitraryBinning):
+        the_xlabel = xlabel_from_binning(axis)
+    else:
+        the_xlabel = variable[0].label 
 
     is_stack = np.asarray([isinstance(d, UnbinnedDatasetStack) for d in dataset])
     resolve_stacks = np.sum(is_stack) == 1
@@ -211,11 +216,8 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
             smallest_nontrivial_ratio - pad,
             largest_nontrivial_ratio + pad
         )
-
-        if isinstance(axis, ArbitraryBinning):
-            ax_pad.set_xlabel(xlabel_from_binning(axis)) # pyright: ignore[reportPossiblyUnboundVariable]
-        else:
-            ax_pad.set_xlabel(variable[0].label) # pyright: ignore[reportPossiblyUnboundVariable]
+            
+        ax_pad.set_xlabel(the_xlabel) # pyright: ignore[reportPossiblyUnboundVariable]
 
         if pulls:
             extra_ylabel = ' [pull]'
@@ -236,15 +238,17 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
                 ax_pad.set_ylabel(('%s/MC' % denomlabel) + extra_ylabel) # pyright: ignore[reportPossiblyUnboundVariable]
 
     else:
-        if isinstance(axis, ArbitraryBinning):
-            ax_main.set_xlabel(xlabel_from_binning(axis)) 
-        else:
-            ax_main.set_xlabel(variable[0].label) 
+        ax_main.set_xlabel(the_xlabel) 
 
     if density:
-        ax_main.set_ylabel('Density')
+        extra_ylabel = ' [Normalized]'
     else:
-        ax_main.set_ylabel('Counts')
+        extra_ylabel = ''
+
+    if isinstance(axis, ArbitraryBinning) and axis.Nax > 1:
+        ax_main.set_ylabel("Counts per bin" + extra_ylabel)
+    else:
+        ax_main.set_ylabel('$\\frac{dN}{d%s}$ %s' % (strip_dollar_signs(strip_units(the_xlabel)), extra_ylabel))
 
     if logx:
         ax_main.set_xscale('log')
@@ -294,7 +298,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
             ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.7)
     
     elif type(axis) is ArbitraryBinning:
-        make_fancy_prebinned_labels(
+        ax2 = make_fancy_prebinned_labels(
             ax_main,
             ax_pad if do_ratiopad else None, # pyright: ignore[reportPossiblyUnboundVariable]
             axis
@@ -305,6 +309,9 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
     draw_legend(ax_main, nolegend)
 
     plt.tight_layout()
+
+    #print(ax2.get_xlim())
+    #print(ax_main.get_xlim())
 
     if output_folder is not None:
         if output_prefix is None:
