@@ -10,7 +10,7 @@ from .AribtraryBinning import ArbitraryBinning
 
 from .histplot import simon_histplot
 
-from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning
+from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning, make_fancy_prebinned_labels
 
 import hist
 import matplotlib.pyplot as plt
@@ -47,10 +47,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
 
     #resolve auto logx BEFORE building axis for unbinned variables
     if logx is None and not isinstance(variable[0], PrebinnedVariable): 
-        print("Attempting to resolve logx automatically...")
         logx = check_auto_logx(variable[0].key)
-        #logx = check_auto_logx("const")
-        print("Auto-resolved logx =", logx)
 
     if (type(dataset_) is list and (len(dataset_) > 1) or len(dataset) == 1):
         style_from_dset = True
@@ -84,12 +81,10 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
 
     #resolve auto logx AFTER building axis for prebinned variables
     if logx is None and isinstance(axis, ArbitraryBinning):
-        print("Attempting to resolve logx automatically...")
         if axis.Nax == 1:
             logx = check_auto_logx(axis.axis_names[0])
         else:
             logx = False
-        print("Auto-resolved logx =", logx)
 
     is_stack = np.asarray([isinstance(d, UnbinnedDatasetStack) for d in dataset])
     resolve_stacks = np.sum(is_stack) == 1
@@ -299,63 +294,11 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
             ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.7)
     
     elif type(axis) is ArbitraryBinning:
-        if axis.Nax == 2:
-            blocks = axis.get_blocks([axis.axis_names[0]])
-            all_contiguous = True
-            for block in blocks:
-                if not isinstance(block['slice'], slice):
-                    all_contiguous = False
-                    print(type(block['slice']))
-                    break
-            
-            if all_contiguous:
-                major_ticks = []
-                for block in blocks:
-                    start = block['slice'].start 
-                    major_ticks.append(start - 0.5)
-                major_ticks.append(axis.total_size - 0.5)
-                major_ticks = np.asarray(major_ticks)
-                print(major_ticks)
-                ax_main.set_xticks(major_ticks, minor=False, labels=['']*len(major_ticks))
-                ax_main.set_xticks(np.arange(axis.total_size + 1) - 0.5, minor=True)
-                ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.9)
-
-                if do_ratiopad:
-                    ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.9) # pyright: ignore[reportPossiblyUnboundVariable]
-                    bottom_ax = ax_pad # pyright: ignore[reportPossiblyUnboundVariable]
-                    
-                    ax2 = ax_pad.twiny()# pyright: ignore[reportPossiblyUnboundVariable]
-                else:
-                    ax2 = ax_main.twiny()
-                    bottom_ax = ax_main
-
-                bottom_ax.tick_params(direction='inout', which='major', axis='x', length=50) 
-
-                ax2.spines['top'].set_visible(False)
-                ax2.spines['bottom'].set_visible(False)
-                ax2.spines['top'].set_position(('axes', 0.0))
-                ax2.set_xlim(ax_main.get_xlim())
-                major_tick_centers = (major_ticks[:-1] + major_ticks[1:]) / 2
-                major_tick_labels = []
-                axname = lookup_axis_label(axis.axis_names[0])
-                axname = strip_units(axname)
-                for block in blocks:
-                    low = block['edges'][axis.axis_names[0]][0]
-                    high = block['edges'][axis.axis_names[0]][1]
-                    if low == -np.inf:
-                        major_tick_labels.append('%s$ \\leq %0.3g$' % (axname, high))
-                    elif high == np.inf:
-                        major_tick_labels.append('$%0.3g < $%s' % (low, axname))
-                    else:
-                        major_tick_labels.append('$%0.3g < $%s$ \\leq %0.3g$' % (low, axname, high))
-
-                ax2.set_xticks(major_tick_centers, minor=False,
-                               labels=major_tick_labels) #dummy labels
-                ax2.set_xticks([], minor=True)
-                ax2.tick_params(axis='x', direction='in', which='both',
-                                labelbottom=True, labeltop=False,
-                                labelsize=14,
-                                length=0)
+        make_fancy_prebinned_labels(
+            ax_main,
+            ax_pad if do_ratiopad else None, # pyright: ignore[reportPossiblyUnboundVariable]
+            axis
+        )
 
     add_text(ax_main, cut, extratext)
 
@@ -382,7 +325,8 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
             output_path += '_DSET-%s' % dataset[0].key
         elif all_same_key(dataset, skip=which_data):
             output_path += '_DSET-DATAvs%s' % dataset[0].key
-
+        else:
+            output_path += '_DSET-%s' % ('vs'.join([d.key for d in dataset]))
         if logx:
             output_path += '_LOGX'
         if logy:
