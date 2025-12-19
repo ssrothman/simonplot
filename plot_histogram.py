@@ -1,4 +1,5 @@
-from .SetupConfig import config
+import os
+from .SetupConfig import config, check_auto_logx
 from .Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable
 from .Cut import AbstractCut, common_cuts, NoCut
 from .datasets import AbstractDataset, DatasetStack
@@ -6,7 +7,7 @@ from .Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCatego
 
 from .histplot import simon_histplot
 
-from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color
+from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key
 
 import hist
 import matplotlib.pyplot as plt
@@ -24,11 +25,12 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
                    labels_: Union[List[str], None] = None,
                    extratext : Union[str, None] = None,
                    density: bool = False,
-                   logx: bool = False,
+                   logx: Union[bool, None] = None,
                    logy: bool = False,
                    no_ratiopad : bool = False,
-                   output_path: Union[str, None] = None):
-    
+                   output_folder: Union[str, None] = None,
+                   output_prefix: Union[str, None] = None):
+
     if labels_ is None or len(labels_) == 1:
         nolegend = True
     else:
@@ -38,6 +40,9 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
         labels_ = ['']
 
     variable, cut, weight, dataset, labels = ensure_same_length(variable_, cut_, weight_, dataset_, labels_)
+
+    if logx is None:
+        logx = check_auto_logx(variable[0].key)
 
     if (type(dataset_) is list and (len(dataset_) > 1) or len(dataset) == 1):
         style_from_dset = True
@@ -107,6 +112,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
     else:
         isdata = False
         which_ref = 0
+        which_data = None
 
         for i in range(len(variable)):
             # scale to arbitrary luminosity of 1000fb^{-1}
@@ -120,7 +126,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
         ax_main = make_oneax(fig)
 
     if isdata:
-        add_cms_legend(ax_main, True, lumi=dataset[which_data].lumi) # pyright: ignore[reportPossiblyUnboundVariable]
+        add_cms_legend(ax_main, True, lumi=dataset[which_data].lumi) # pyright: ignore[reportCallIssue, reportArgumentType]
     else:
         add_cms_legend(ax_main, False)
 
@@ -247,7 +253,35 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
 
     plt.tight_layout()
 
-    if output_path is not None:
+    if output_folder is not None:
+        if output_prefix is None:
+            output_path = os.path.join(output_folder, 'hist')
+        else:
+            output_path = os.path.join(output_folder, output_prefix)
+
+        if all_same_key(variable):
+            output_path += '_VAR-%s' % variable[0].key 
+        
+        if all_same_key(cut):
+            output_path += '_CUT-%s' % cut[0].key
+
+        if all_same_key(weight, skip=which_data):
+            output_path += '_WGT-%s' % weight[0].key
+
+        if all_same_key(dataset):
+            output_path += '_DSET-%s' % dataset[0].key
+        elif all_same_key(dataset, skip=which_data):
+            output_path += '_DSET-DATAvs%s' % dataset[0].key
+
+        if logx:
+            output_path += '_LOGX'
+        if logy:
+            output_path += '_LOGY'
+        if density:
+            output_path += '_DENSITY'
+        if no_ratiopad:
+            output_path += '_NORATIO'
+
         savefig(fig, output_path)
     else:
         plt.show()

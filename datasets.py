@@ -27,16 +27,25 @@ class AbstractDataset:
         self._label = None
         self._color = None
 
+        self._key = None
+
     def set_label(self, label):
         self._label = label
 
     def set_color(self, color):
         self._color = color
 
+    def set_key(self, key):
+        self._key = key
+
     @property
     def label(self):
         return self._label
     
+    @property
+    def key(self):
+        return self._key
+
     @property
     def color(self):
         return self._color

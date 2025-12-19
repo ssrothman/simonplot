@@ -50,7 +50,7 @@ def savefig(fig, path: str, mkdir : bool=True):
     if mkdir:
         import os
         dirname = os.path.dirname(path)
-        if dirname != '':
+        if dirname != '' and dirname != path:
             os.makedirs(dirname, exist_ok=True)
 
     print("Saving figure %s" % (path))
@@ -139,3 +139,20 @@ def get_artist_color(artist : Union[matplotlib.container.ErrorbarContainer, matp
         return get_artist_color(artist.lines[0])
     elif isinstance(artist, matplotlib.lines.Line2D):
         return artist.get_color()
+    
+def all_same_key(things : List, skip : Union[int, None]=None):
+    
+    indices = list(range(len(things)))
+    if skip is not None:
+        indices.remove(skip)
+
+    if len(indices) == 0:
+        return True
+
+    thing0 = things[indices[0]]
+
+    for i in indices[1:]:
+        if thing0.key != things[i].key:
+            return False
+        
+    return True

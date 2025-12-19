@@ -87,3 +87,19 @@ def lookup_axis_label(axiskey: str) -> str:
     print("WARNING: No axis label in config for key:", axiskey)
     return axiskey  #default to axiskey if no match found
         
+
+def check_auto_logx(axiskey: str) -> bool:
+    for pattern in config['auto_logx_patterns']:
+        if attempt_regex_match(pattern, axiskey):
+            return True
+        
+    if '.' in axiskey:
+        stripped_axiskey = strip_collection_names(axiskey)
+        for pattern in config['auto_logx_patterns']:
+            if '.' in pattern:
+                continue  #strategy 2 not applicable
+            
+            if attempt_regex_match(pattern, stripped_axiskey):
+                return True
+            
+    return False
