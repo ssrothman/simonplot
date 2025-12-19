@@ -126,7 +126,7 @@ def simon_histplot_ratio(Hnum, Hdenom, ax=None,
     vals_denom /= widths
     errs_denom /= widths
 
-    with np.errstate(invalid='ignore'): #ignore warnings from 0/0 operations. These return NaN, which are handled correctly downstream
+    with np.errstate(divide='ignore', invalid='ignore'): #ignore warnings from 0/0 operations. These return NaN, which are handled correctly downstream
         ratio = vals_num / vals_denom
 
         ratio_err = np.sqrt(
