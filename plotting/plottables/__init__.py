@@ -1,8 +1,10 @@
-from .Datasets import PrebinnedDataset, NanoEventsDataset, ParquetDataset, UnbinnedDatasetStack
+from .Datasets import NanoEventsDataset, ParquetDataset, UnbinnedDatasetStack
+from .PrebinnedDatasets import ValCovPairDataset, CovmatDataset
 from .PlotStuff import LineSpec, PointSpec
 
 __all__ = [
-    "PrebinnedDataset",
+    "ValCovPairDataset",
+    "CovmatDataset",
     "NanoEventsDataset",
     "ParquetDataset",
     "UnbinnedDatasetStack",

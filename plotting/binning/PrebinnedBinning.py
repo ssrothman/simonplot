@@ -1,5 +1,5 @@
 from .Abstract import AbstractBinning
-from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset, PrebinnedDataset
+from simon_mpl_util.plotting.plottables.Abstract import AbstractDataset, AbstractPrebinnedDataset
 from simon_mpl_util.plotting.cut.PrebinnedCut import PrebinnedOperation
 
 from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
@@ -17,7 +17,7 @@ class PrebinnedBinning(AbstractBinning):
                              dataset : AbstractDataset,
                              cut : PrebinnedOperation) -> ArbitraryBinning:
         
-        if not isinstance(dataset, PrebinnedDataset):
+        if not isinstance(dataset, AbstractPrebinnedDataset):
             raise TypeError("PrebinnedBinning can only build axes from PrebinnedDataset datasets")
 
         return cut.resulting_binning(dataset.binning)

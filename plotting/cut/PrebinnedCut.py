@@ -1,4 +1,4 @@
-from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset, PrebinnedDataset
+from simon_mpl_util.plotting.plottables.Abstract import AbstractPrebinnedDataset
 from simon_mpl_util.plotting.util.config import lookup_axis_label
 
 from simon_mpl_util.util.text import strip_units
@@ -22,10 +22,10 @@ class NoopOperation(PrebinnedOperation):
         return isinstance(other, NoopOperation)
 
     def evaluate(self, dataset):
-        if not isinstance(dataset, PrebinnedDataset):
+        if not isinstance(dataset, AbstractPrebinnedDataset):
             raise TypeError("NoopOperation can only be applied to PrebinnedDataset")
         
-        return dataset.values, dataset.cov
+        return dataset.data
 
     def _compute_resulting_binning(self, binning : ArbitraryBinning) -> ArbitraryBinning:
         return binning
@@ -50,10 +50,10 @@ class ProjectionOperation(PrebinnedOperation):
         return self._axes == other._axes
 
     def evaluate(self, dataset):
-        if not isinstance(dataset, PrebinnedDataset):
+        if not isinstance(dataset, AbstractPrebinnedDataset):
             raise TypeError("ProjectionOperation can only be applied to PrebinnedDataset")
         
-        return dataset.project(self._axes)[:2]
+        return dataset.project(self._axes)
 
     def _compute_resulting_binning(self, binning : ArbitraryBinning) -> ArbitraryBinning:
         result = binning
@@ -95,7 +95,7 @@ class SliceOperation(PrebinnedOperation):
         return self.key == other.key
     
     def evaluate(self, dataset):
-        if not isinstance(dataset, PrebinnedDataset):
+        if not isinstance(dataset, AbstractPrebinnedDataset):
             raise TypeError("SliceOperation can only be applied to PrebinnedDataset")
         
         return dataset.slice(self._edges)
@@ -128,12 +128,13 @@ class ProjectAndSliceOperation(PrebinnedOperation):
         return '\n'.join(texts)
 
     def evaluate(self, dataset):
-        if not isinstance(dataset, PrebinnedDataset):
+        if not isinstance(dataset, AbstractPrebinnedDataset):
             raise TypeError("ProjectAndSliceOperation can only be applied to PrebinnedDataset")
         
-        proj_dset = PrebinnedDataset(
+        projdata = self._projection.evaluate(dataset)
+        proj_dset = type(dataset)(
             "TMP",
-            *self._projection.evaluate(dataset),
+            projdata,
             self._projection.resulting_binning(dataset.binning)
         )
         return self._slice.evaluate(proj_dset)

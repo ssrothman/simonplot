@@ -251,28 +251,3 @@ class ParquetDataset(AbstractUnbinnedDataset):
     def schema(self):
         return self._dataset.schema
     
-class PrebinnedDataset(AbstractPrebinnedDataset):
-    def __init__(self, key : str, values : np.ndarray, cov : np.ndarray, binning : ArbitraryBinning):
-        super().__init__(key, values, cov, binning)
-
-    @property
-    def is_stack(self) -> bool:
-        return False
-    
-    def project(self, axes : List[str]):
-        result = self._values
-        projbinning = self._binning
-        for ax in axes:
-            result, projbinning = projbinning.project_out(result, ax)
-
-        covresult = self._cov
-        b2 = self._binning
-        for ax in axes:
-            covresult, b2 = b2.project_out_cov2d(covresult, ax)
-
-        return result, covresult, projbinning
-
-    def slice(self, edges):
-        result = self._binning.get_slice(self._values, **edges)
-        covresult = self._binning.get_slice_cov2d(self._cov, **edges)
-        return result, covresult

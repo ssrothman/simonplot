@@ -8,7 +8,7 @@ from simon_mpl_util.plotting.cut.Abstract import AbstractCut
 
 from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
 
-from typing import List, Union
+from typing import Any, List, Union
 import hist
 import matplotlib.axes
 
@@ -187,19 +187,14 @@ class AbstractUnbinnedDataset(AbstractDataset):
         )
 
 class AbstractPrebinnedDataset(AbstractDataset):
-    def __init__(self, key : str, values : np.ndarray, cov : np.ndarray, binning : ArbitraryBinning):
+    def __init__(self, key : str, values : Any, binning : ArbitraryBinning):
         super().__init__(key)
-        self._values = values
-        self._cov = cov
+        self._data = values
         self._binning = binning
 
     @property
-    def values(self):
-        return self._values
-    
-    @property
-    def cov(self):
-        return self._cov
+    def data(self):
+        return self._data
 
     @property
     def binning(self):
