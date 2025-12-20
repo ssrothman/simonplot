@@ -1,8 +1,8 @@
 from .Cut import AbstractCut
 from typing import List
 from ..datasets import AbstractDataset, PrebinnedDataset
-from ..AribtraryBinning import ArbitraryBinning
-from ..SetupConfig import lookup_axis_label
+from ..util.AribtraryBinning import ArbitraryBinning
+from ..util.SetupConfig import lookup_axis_label
 from ..util import strip_units
 import numpy as np
 

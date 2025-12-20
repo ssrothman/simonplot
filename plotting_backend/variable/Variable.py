@@ -1,7 +1,7 @@
-from ..SetupConfig import config, lookup_axis_label
+from ..util.SetupConfig import config, lookup_axis_label
 import copy
 from typing import List
-from ..coordinates_util import xyz_to_eta_phi
+from ..util.coordinates_util import xyz_to_eta_phi
 
 def variable_from_string(name):
     if 'over' in name:

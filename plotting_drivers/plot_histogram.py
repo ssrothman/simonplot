@@ -1,16 +1,16 @@
 import os
-from .SetupConfig import config, check_auto_logx, lookup_axis_label
-from .variable.Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable, PrebinnedVariable
-from .cut.Cut import AbstractCut, common_cuts, NoCut
-from .datasets import AbstractDataset, UnbinnedDatasetStack
-from .binning.Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCategoryBinning
-from .binning.PrebinnedBinning import PrebinnedBinning
-from .cut.PrebinnedCut import PrebinnedOperation
-from .AribtraryBinning import ArbitraryBinning
+from ..plotting_backend.util.SetupConfig import config, check_auto_logx, lookup_axis_label
+from ..variable.Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable, PrebinnedVariable
+from ..cut.Cut import AbstractCut, common_cuts, NoCut
+from ..plotting_backend.datasets import AbstractDataset, UnbinnedDatasetStack
+from ..binning.Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCategoryBinning
+from ..binning.PrebinnedBinning import PrebinnedBinning
+from ..cut.PrebinnedCut import PrebinnedOperation
+from ..util import ArbitraryBinning
 
-from .histplot import simon_histplot
+from ..util.histplot import simon_histplot
 
-from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning, make_fancy_prebinned_labels, strip_dollar_signs
+from ..util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning, make_fancy_prebinned_labels, strip_dollar_signs
 
 import hist
 import matplotlib.pyplot as plt

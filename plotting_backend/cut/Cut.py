@@ -1,5 +1,5 @@
 from ..variable.Variable import variable_from_string
-from ..SetupConfig import config
+from ..util.SetupConfig import config
 import numpy as np
 import copy
 from typing import List, Sequence, Union

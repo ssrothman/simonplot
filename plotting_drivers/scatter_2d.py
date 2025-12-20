@@ -1,15 +1,15 @@
 import matplotlib.axes
-from .SetupConfig import config
-from .variable.Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable
-from .cut.Cut import AbstractCut, common_cuts, NoCut
-from .datasets import AbstractDataset
-from .binning.Binning import AbstractBinning, AutoBinning, DefaultBinning
+from ..plotting_backend.util.SetupConfig import config
+from ..variable.Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable
+from ..cut.Cut import AbstractCut, common_cuts, NoCut
+from ..plotting_backend.datasets import AbstractDataset
+from ..binning.Binning import AbstractBinning, AutoBinning, DefaultBinning
 
-from .histplot import simon_histplot
+from ..util import simon_histplot
 
-from .util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax
-from .place_text import place_text
-from .PlotStuff import AbstractPlotSpec
+from ..util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax
+from ..util import place_text
+from ..plotting_backend.PlotStuff import AbstractPlotSpec
 
 import hist
 import matplotlib.pyplot as plt

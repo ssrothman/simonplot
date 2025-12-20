@@ -12,11 +12,11 @@ from .cut.Cut import AbstractCut
 from typing import Union, override
 import hist
 import matplotlib.axes
-from .histplot import simon_histplot, simon_histplot_ratio, simon_histplot_arbitrary, simon_histplot_ratio_arbitrary
-from .AribtraryBinning import ArbitraryBinning
+from ..util import simon_histplot, simon_histplot_ratio, simon_histplot_arbitrary, simon_histplot_ratio_arbitrary
+from ..util import ArbitraryBinning
 from .variable.Variable import ConstantVariable
 from .cut.Cut import NoCut
-from .AribtraryBinning import ArbitraryBinning
+from ..util import ArbitraryBinning
 from .variable.Variable import PrebinnedVariable
 
 from typing import List, Union

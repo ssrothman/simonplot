@@ -1,4 +1,4 @@
-from ..SetupConfig import config, lookup_axis_label
+from ..util.SetupConfig import config, lookup_axis_label
 import hist
 import awkward as ak
 import numpy as np
@@ -7,7 +7,7 @@ from ..variable.Variable import AbstractVariable
 from ..cut.Cut import AbstractCut
 from ..datasets import AbstractDataset
 from typing import Union, List
-from ..AribtraryBinning import ArbitraryBinning
+from ..util.AribtraryBinning import ArbitraryBinning
 from ..cut.PrebinnedCut import PrebinnedOperation
 
 def transform_from_string(str : Union[str, None]) -> Union[hist.axis.transform.AxisTransform, None]:

@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import mplhep as hep
 
-from .SetupConfig import config, lookup_axis_label
+from .plotting_backend.util.SetupConfig import config, lookup_axis_label
 
 from typing import Union, List
 from .cut.Cut import AbstractCut, common_cuts, NoCut
-from .place_text import place_text
-from .AribtraryBinning import ArbitraryBinning
+from .util.place_text import place_text
+from .util.AribtraryBinning import ArbitraryBinning
 
 hep.style.use(hep.style.CMS)
 matplotlib.rcParams['savefig.dpi'] = 300

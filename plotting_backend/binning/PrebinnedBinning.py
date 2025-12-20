@@ -1,6 +1,6 @@
 from .Binning import AbstractBinning
 import hist
-from ..AribtraryBinning import ArbitraryBinning
+from ..util.AribtraryBinning import ArbitraryBinning
 from ..variable.Variable import AbstractVariable, PrebinnedVariable
 from ..datasets import AbstractDataset, PrebinnedDataset
 from ..cut.PrebinnedCut import PrebinnedOperation
