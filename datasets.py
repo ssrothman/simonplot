@@ -443,8 +443,9 @@ class PrebinnedDataset(AbstractDataset):
         return result, covresult, projbinning
 
     def slice(self, edges):
-        raise NotImplementedError("TO DO")
-        #return self._binning.get_slice(self._values, **edges)
+        result = self._binning.get_slice(self._values, **edges)
+        covresult = self._binning.get_slice_cov2d(self._cov, **edges)
+        return result, covresult
     
     def _plot_histogram(self,
                        variable: AbstractVariable, 

@@ -868,6 +868,92 @@ class ArbitraryBinning:
         result = self.get_slice(data.T, **theedges)
         return self.get_slice(result.T, **theedges)
 
+    def get_sliced_binning(self, **theedges : dict) -> 'ArbitraryBinning':
+        '''
+        Get a new ArbitraryBinning representing the binning structure of the slice specified by the provided edges.
+        
+        :param self: This object
+        :param theedges: The edges specifying the slice. The format is
+            { axis_name : (min_edge, max_edge) }
+            This dictionary need not specify all axes in the binning
+        :type theedges: dict
+        :return: A new ArbitraryBinning representing the binning structure of the specified slice
+        :rtype: ArbitraryBinning
+        '''
+
+        #check which blocks overlap the requested edges
+        #and get the clipped edges for each overlapping block
+        overlap_block = np.ones(len(self._blocks), dtype=bool)
+        clipped_edges = []
+        for i, block in enumerate(self._blocks):
+            clipped = block.clip_edges_to_block(**theedges)
+            if clipped is None:
+                overlap_block[i] = False
+                clipped_edges.append(None)
+            else:
+                clipped_edges.append(clipped)
+
+        if np.sum(overlap_block) == 0:
+            raise ValueError("No blocks overlap with the specified edges.")
+
+        #build new binning
+        newbinning = ArbitraryBinning()
+        newbinning._axis_names = self._axis_names.copy()
+        newbinning._Nax = self._Nax
+        newbinning._blocks = []
+
+        running_offset = 0
+        for i, block in enumerate(self._blocks):
+            if overlap_block[i]:
+                newblock = _BinningBlock()
+                newblock.axis_names = block.axis_names.copy()
+                newblock.Nax = block.Nax
+                for name in block.axis_names:
+                    extent = 0
+                    edges = []
+                    if name in clipped_edges[i]:
+                        edgepair = clipped_edges[i][name]
+                        edges = [e for e in block.ax_details[name]['edges'] if e >= edgepair[0] and e <= edgepair[1]]
+                        extent = len(edges) - 1
+                    else:
+                        edges = block.ax_details[name]['edges'].copy()
+                        extent = block.ax_details[name]['extent']
+
+                    newblock.extents.append(extent)
+                    newblock.ax_details[name] = {
+                        'edges' : edges,
+                        'extent' : extent,
+                        'minedge' : edges[0],
+                        'maxedge' : edges[-1]
+                    }
+                    newblock.total_size *= extent
+                newblock.calculate_strides()
+                newblock.offset = running_offset
+                running_offset += newblock.total_size
+                newbinning._blocks.append(newblock)
+
+
+        unique_edges = {}
+        for name in newbinning._axis_names:
+            unique_edges[name] = set()
+        for block in newbinning._blocks:
+            for name in block.axis_names:
+                for edge in block.ax_details[name]['edges']:
+                    unique_edges[name].add(edge)
+        for name in unique_edges:
+            if len(unique_edges[name]) <= 2: #then this axis is degenerate and can be REMOVED
+                newbinning._axis_names.remove(name)
+                newbinning._Nax -= 1
+                for block in newbinning._blocks:
+                    offending_index = block.axis_names.index(name)
+                    block.extents.pop(offending_index)
+                    block.strides.pop(offending_index)
+                    block.axis_names.pop(offending_index)
+                    block.Nax -= 1
+                    del block.ax_details[name]
+
+        return newbinning
+    
     def project_out(self, data : np.ndarray, axis_name: str) -> Tuple[np.ndarray, 'ArbitraryBinning']:
         '''
         Project out an axis from the data, returning the projected data and a new ArbitraryBinning representing the new binning structure.
