@@ -1,7 +1,8 @@
-from ..variable.Variable import variable_from_string
-from ..util.SetupConfig import config
+from simon_mpl_util.plotting.variable.Variable import variable_from_string
+
 import numpy as np
 import copy
+
 from typing import List, Sequence, Union
 
 class AbstractCut:

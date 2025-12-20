@@ -1,21 +1,17 @@
+from simon_mpl_util.plotting.util.config import config
+from simon_mpl_util.plotting.variable.Variable import AbstractVariable
+from simon_mpl_util.plotting.cut.Cut import AbstractCut
+from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset
+from simon_mpl_util.plotting.plottables.PlotStuff import AbstractPlotSpec
+from simon_mpl_util.plotting.util.common import setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax
+
+from simon_mpl_util.util.sanitization import ensure_same_length
+
 import matplotlib.axes
-from ..plotting_backend.util.SetupConfig import config
-from ..variable.Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable
-from ..cut.Cut import AbstractCut, common_cuts, NoCut
-from ..plotting_backend.datasets import AbstractDataset
-from ..binning.Binning import AbstractBinning, AutoBinning, DefaultBinning
-
-from ..util import simon_histplot
-
-from ..util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax
-from ..util import place_text
-from ..plotting_backend.PlotStuff import AbstractPlotSpec
-
-import hist
 import matplotlib.pyplot as plt
 import awkward as ak
 
-from typing import List, Sequence, Union
+from typing import List, Union
 
 def scatter_2d(varX_ : Union[AbstractVariable, List[AbstractVariable]], 
                varY_ : Union[AbstractVariable, List[AbstractVariable]], 

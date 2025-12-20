@@ -1,14 +1,16 @@
-from ..util.SetupConfig import config, lookup_axis_label
+from simon_mpl_util.plotting.util.config import config, lookup_axis_label
+from simon_mpl_util.plotting.variable.Variable import AbstractVariable
+from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset
+from simon_mpl_util.plotting.cut.Cut import AbstractCut
+from simon_mpl_util.plotting.cut.PrebinnedCut import PrebinnedOperation
+
+from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
+
 import hist
 import awkward as ak
 import numpy as np
 
-from ..variable.Variable import AbstractVariable
-from ..cut.Cut import AbstractCut
-from ..datasets import AbstractDataset
 from typing import Union, List
-from ..util.AribtraryBinning import ArbitraryBinning
-from ..cut.PrebinnedCut import PrebinnedOperation
 
 def transform_from_string(str : Union[str, None]) -> Union[hist.axis.transform.AxisTransform, None]:
     if str is None or str.lower() == "none":

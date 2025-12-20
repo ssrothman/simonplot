@@ -1,6 +1,8 @@
 import json
 import re
 
+from simon_mpl_util.util.text import attempt_regex_match
+
 with open("simon_mpl_config.json", "r") as f:
     config = json.load(f)
 
@@ -20,15 +22,6 @@ def strip_collection_names(axiskey:str) -> str:
 
     return stripped_axiskey
 
-def attempt_regex_match(pattern: str, axiskey: str) -> bool:
-    #escape special characters
-    pattern_escaped = re.escape(pattern)
-    #replace '*' wildcard with alphanumeric match
-    pattern_escaped = pattern_escaped.replace(r'\*', r'[a-zA-Z0-9]*')
-    #ensure no leading or trailing characters
-    pattern_escaped = "^" + pattern_escaped + "$" 
-
-    return re.fullmatch(pattern_escaped, axiskey) is not None
 
 '''
 Utility function to lookup axis labels from config

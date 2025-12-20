@@ -8,12 +8,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import mplhep as hep
 
-from .plotting_backend.util.SetupConfig import config, lookup_axis_label
+from .config import config, lookup_axis_label
+from .place_text import place_text
+
+from simon_mpl_util.plotting.cut.Cut import AbstractCut, common_cuts, NoCut
+
+from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
+from simon_mpl_util.util.text import strip_units
 
 from typing import Union, List
-from .cut.Cut import AbstractCut, common_cuts, NoCut
-from .util.place_text import place_text
-from .util.AribtraryBinning import ArbitraryBinning
 
 hep.style.use(hep.style.CMS)
 matplotlib.rcParams['savefig.dpi'] = 300
@@ -57,123 +60,6 @@ def savefig(fig, path: str, mkdir : bool=True):
     print("Saving figure %s" % (path))
     fig.savefig(path+'.png', dpi=300, bbox_inches='tight', format='png')
     fig.savefig(path+'.pdf', bbox_inches='tight', format='pdf')
-
-def ensure_same_length(*args):
-    result = []
-    for arg in args:
-        if isinstance(arg, list):
-            result.append(arg)
-        else:
-            result.append([arg])
-    
-    maxlen = max([len(x) for x in result])
-
-    for i in range(len(result)):
-        if len(result[i]) == 1:
-            result[i] = result[i] * maxlen
-        elif len(result[i]) != maxlen:
-            raise ValueError("All input arguments must have the same length or be of length 1")
-
-    return result
-
-def add_text(ax : matplotlib.axes.Axes, cut: Union[AbstractCut, List[AbstractCut]], extratext: Union[str, None]=None):
-    ccut = common_cuts(cut)
-    if type(ccut) is not NoCut:
-        thetext = ccut.plottext
-    else:
-        thetext = ''
-        
-    if extratext is not None:
-        thetext = extratext + '\n' + thetext
-
-    thetext = thetext.strip()
-
-    if thetext != '':
-        place_text(ax, thetext, loc='best', fontsize=24, bbox_opts={
-            'boxstyle': 'round,pad=0.3',
-            'facecolor': 'white',
-            'edgecolor': 'black',
-            'alpha': 0.8
-        })
-
-def draw_legend(ax: matplotlib.axes.Axes, nolegend: bool, scale: float=1.0, loc: Union[str, int, tuple] ='best'):
-    if not nolegend:
-        if type(loc) in [int, str]:
-            ldg = ax.legend(
-                fontsize=18, 
-                loc=loc,
-                framealpha=0.8,
-                borderpad=0.3,
-                frameon=True,
-                markerscale=scale
-            )
-        elif type(loc) is tuple:
-            ldg = ax.legend(
-                fontsize=18, 
-                bbox_to_anchor=loc[:2],
-                loc=loc[2],
-                framealpha=0.8,
-                borderpad=0.3,
-                frameon=True,
-                markerscale=scale
-            )
-        else:
-            raise ValueError("draw_legend: loc argument has invalid type %s"%(type(loc)))
-
-        #if markers are tiny, increase their size in legend
-        for handle in ldg.legend_handles: # pyright: ignore[reportAttributeAccessIssue]
-            if hasattr(handle, 'get_sizes'):
-                
-                minsize = np.min(handle.get_sizes()) # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
-
-                if minsize < 25: #arbitrary threshold. NB this is the square of the markersize
-
-                    #remove existing legend, and recursively callback with a larger markerscale
-                    ldg.remove()
-                    draw_legend(ax, nolegend, scale=scale+1, loc=loc)
-                    break
-
-def get_artist_color(artist : Union[matplotlib.container.ErrorbarContainer, matplotlib.patches.Patch, matplotlib.lines.Line2D]):
-    if isinstance(artist, matplotlib.patches.Patch):
-        return artist.get_facecolor()
-    elif isinstance(artist, matplotlib.container.ErrorbarContainer):
-        return get_artist_color(artist.lines[0])
-    elif isinstance(artist, matplotlib.lines.Line2D):
-        return artist.get_color()
-    
-def all_same_key(things : List, skip : Union[int, None]=None):
-    
-    indices = list(range(len(things)))
-    if skip is not None:
-        indices.remove(skip)
-
-    if len(indices) == 0:
-        return True
-
-    thing0 = things[indices[0]]
-
-    for i in indices[1:]:
-        if thing0.key != things[i].key:
-            return False
-        
-    return True
-
-def strip_units(s: str) -> str:
-    if '[' in s and ']' in s:
-        start = s.index('[')
-        end = s.index(']')
-        return s[:start].strip() + s[end+1:].strip()
-    else:
-        return s.strip()
-    
-def strip_dollar_signs(s: str) -> str:
-    return s.replace('$', '')
-
-def xlabel_from_binning(binning : ArbitraryBinning) -> str:
-    if binning.Nax == 1:
-        return lookup_axis_label(binning.axis_names[0])
-    else:
-        return '@'.join([strip_units(lookup_axis_label(ax)) for ax in binning.axis_names]) + " bin index"
 
 def make_fancy_prebinned_labels(ax_main : matplotlib.axes.Axes, 
                                 ax_pad : Union[matplotlib.axes.Axes, None],
@@ -250,3 +136,74 @@ def make_fancy_prebinned_labels(ax_main : matplotlib.axes.Axes,
     ax_main.set_xlim(original_xlim)
     ax2.set_xlim(original_xlim)
     return ax2
+
+def draw_legend(ax: matplotlib.axes.Axes, nolegend: bool, scale: float=1.0, loc: Union[str, int, tuple] ='best'):
+    if not nolegend:
+        if type(loc) in [int, str]:
+            ldg = ax.legend(
+                fontsize=18, 
+                loc=loc,
+                framealpha=0.8,
+                borderpad=0.3,
+                frameon=True,
+                markerscale=scale
+            )
+        elif type(loc) is tuple:
+            ldg = ax.legend(
+                fontsize=18, 
+                bbox_to_anchor=loc[:2],
+                loc=loc[2],
+                framealpha=0.8,
+                borderpad=0.3,
+                frameon=True,
+                markerscale=scale
+            )
+        else:
+            raise ValueError("draw_legend: loc argument has invalid type %s"%(type(loc)))
+
+        #if markers are tiny, increase their size in legend
+        for handle in ldg.legend_handles: # pyright: ignore[reportAttributeAccessIssue]
+            if hasattr(handle, 'get_sizes'):
+                
+                minsize = np.min(handle.get_sizes()) # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
+
+                if minsize < 25: #arbitrary threshold. NB this is the square of the markersize
+
+                    #remove existing legend, and recursively callback with a larger markerscale
+                    ldg.remove()
+                    draw_legend(ax, nolegend, scale=scale+1, loc=loc)
+                    break
+
+def add_text(ax : matplotlib.axes.Axes, cut: Union[AbstractCut, List[AbstractCut]], extratext: Union[str, None]=None):
+    ccut = common_cuts(cut)
+    if type(ccut) is not NoCut:
+        thetext = ccut.plottext
+    else:
+        thetext = ''
+        
+    if extratext is not None:
+        thetext = extratext + '\n' + thetext
+
+    thetext = thetext.strip()
+
+    if thetext != '':
+        place_text(ax, thetext, loc='best', fontsize=24, bbox_opts={
+            'boxstyle': 'round,pad=0.3',
+            'facecolor': 'white',
+            'edgecolor': 'black',
+            'alpha': 0.8
+        })
+
+def get_artist_color(artist : Union[matplotlib.container.ErrorbarContainer, matplotlib.patches.Patch, matplotlib.lines.Line2D]):
+    if isinstance(artist, matplotlib.patches.Patch):
+        return artist.get_facecolor()
+    elif isinstance(artist, matplotlib.container.ErrorbarContainer):
+        return get_artist_color(artist.lines[0])
+    elif isinstance(artist, matplotlib.lines.Line2D):
+        return artist.get_color()
+
+def label_from_binning(binning : ArbitraryBinning) -> str:
+    if binning.Nax == 1:
+        return lookup_axis_label(binning.axis_names[0])
+    else:
+        return '@'.join([strip_units(lookup_axis_label(ax)) for ax in binning.axis_names]) + " bin index"

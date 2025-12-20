@@ -1,21 +1,18 @@
+from simon_mpl_util.plotting.util.config import config, check_auto_logx
+from simon_mpl_util.plotting.variable.Variable import AbstractVariable, RatioVariable, DifferenceVariable, PrebinnedVariable
+from simon_mpl_util.plotting.variable.CompositeVariable import RelativeResolutionVariable
+from simon_mpl_util.plotting.cut.Cut import AbstractCut
+from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset, UnbinnedDatasetStack
+from simon_mpl_util.plotting.binning.Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCategoryBinning
+from simon_mpl_util.plotting.binning.PrebinnedBinning import PrebinnedBinning
+from simon_mpl_util.plotting.util.common import setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
+
+from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
+from simon_mpl_util.util.sanitization import ensure_same_length, all_same_key
+from simon_mpl_util.util.text import strip_units, strip_dollar_signs
+
 import os
-from ..plotting_backend.util.SetupConfig import config, check_auto_logx, lookup_axis_label
-from ..variable.Variable import AbstractVariable, variable_from_string, RatioVariable, DifferenceVariable, RelativeResolutionVariable, PrebinnedVariable
-from ..cut.Cut import AbstractCut, common_cuts, NoCut
-from ..plotting_backend.datasets import AbstractDataset, UnbinnedDatasetStack
-from ..binning.Binning import AbstractBinning, AutoBinning, DefaultBinning, AutoIntCategoryBinning
-from ..binning.PrebinnedBinning import PrebinnedBinning
-from ..cut.PrebinnedCut import PrebinnedOperation
-from ..util import ArbitraryBinning
-
-from ..util.histplot import simon_histplot
-
-from ..util import setup_canvas, add_cms_legend, savefig, ensure_same_length, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, all_same_key, strip_units, xlabel_from_binning, make_fancy_prebinned_labels, strip_dollar_signs
-
-import hist
 import matplotlib.pyplot as plt
-import matplotlib.axes
-import awkward as ak
 import numpy as np
 
 from typing import List, Union
@@ -87,7 +84,7 @@ def plot_histogram(variable_: Union[AbstractVariable, List[AbstractVariable]],
             logx = False
 
     if isinstance(axis, ArbitraryBinning):
-        the_xlabel = xlabel_from_binning(axis)
+        the_xlabel = label_from_binning(axis)
     else:
         the_xlabel = variable[0].label 
 

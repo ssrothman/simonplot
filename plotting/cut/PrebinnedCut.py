@@ -1,10 +1,13 @@
-from .Cut import AbstractCut
-from typing import List
-from ..datasets import AbstractDataset, PrebinnedDataset
-from ..util.AribtraryBinning import ArbitraryBinning
-from ..util.SetupConfig import lookup_axis_label
-from ..util import strip_units
+from simon_mpl_util.plotting.cut.Cut import AbstractCut
+from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset, PrebinnedDataset
+from simon_mpl_util.plotting.util.config import lookup_axis_label
+
+from simon_mpl_util.util.text import strip_units
+from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
+
 import numpy as np
+
+from typing import List
 
 class PrebinnedOperation(AbstractCut):
     @property

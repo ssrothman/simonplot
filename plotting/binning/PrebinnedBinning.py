@@ -1,9 +1,8 @@
 from .Binning import AbstractBinning
-import hist
-from ..util.AribtraryBinning import ArbitraryBinning
-from ..variable.Variable import AbstractVariable, PrebinnedVariable
-from ..datasets import AbstractDataset, PrebinnedDataset
-from ..cut.PrebinnedCut import PrebinnedOperation
+from simon_mpl_util.plotting.plottables.Datasets import AbstractDataset, PrebinnedDataset
+from simon_mpl_util.plotting.cut.PrebinnedCut import PrebinnedOperation
+
+from simon_mpl_util.util.AribtraryBinning import ArbitraryBinning
 
 class PrebinnedBinning(AbstractBinning):
     def build_prebinned_axis(self,
