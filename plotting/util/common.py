@@ -30,6 +30,10 @@ def make_oneax(fig: matplotlib.figure.Figure) -> matplotlib.axes.Axes:
     ax = fig.add_subplot(1,1,1)
     return ax
 
+def make_radial_ax(fig: matplotlib.figure.Figure) -> matplotlib.axes.Axes:
+    ax = fig.add_subplot(1,1,1, projection='polar')
+    return ax
+
 def make_axes_withpad(fig: matplotlib.figure.Figure):
     (ax_main, ax_pad) = fig.subplots(
         2, 1,
