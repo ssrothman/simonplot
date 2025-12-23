@@ -15,4 +15,4 @@ if os.path.exists("simon_mpl_config.json"):
 else:
     user_config = {}
 
-config = merge_dict(defaults, user_config, allow_new_keys=False)
+config = merge_dict(defaults, user_config, allow_new_keys=False, replace_dict=['axis_labels'])
