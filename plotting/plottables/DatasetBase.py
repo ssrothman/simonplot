@@ -212,7 +212,8 @@ class SingleDatasetBase(DatasetBase):
             )
 
         elif isinstance(self, PrebinnedDatasetAccessProtocol):
-            cutresult = cut.evaluate(self)
+            cutresult = variable.evaluate(self, cut)
+
             if isinstance(cutresult, tuple) and len(cutresult) == 2:
                 val, cov = cutresult
             else:
@@ -307,6 +308,14 @@ class DatasetStackBase(DatasetBase):
                   weight : VariableProtocol,
                   axis : Any) -> Any:
        
+        if 'NormalizePerBlock' in variable.key:
+            # Kinda a weird edge case
+            # When using a NormalizePerBlock variable, there is an implicit normalization
+            # so stacks cannot just be summed up normally ....
+            # for now just throw an error....
+            # maybe later can implement some clever reweighting of the constituent blocks
+            raise RuntimeError("DatasetStack.fill_hist: Cannot fill hist with NormalizePerBlock variable on a dataset stack!")
+
         for d in self._datasets:
             d.fill_hist(variable, cut, weight, axis)
 
