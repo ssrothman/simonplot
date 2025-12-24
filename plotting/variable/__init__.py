@@ -1,6 +1,6 @@
 from .Variable import  ConstantVariable, BasicVariable, ConcatVariable, AkNumVariable, RatioVariable, ProductVariable, DifferenceVariable, SumVariable, CorrectionlibVariable, UFuncVariable
 from .CompositeVariable import RelativeResolutionVariable, Magnitude3dVariable, Magnitude2dVariable, Distance3dVariable, EtaFromXYZVariable, PhiFromXYZVariable
-from .PrebinnedVariable import BasicPrebinnedVariable
+from .PrebinnedVariable import BasicPrebinnedVariable, WithJacobian, NormalizePerBlock
 __all__ = [
     'ConstantVariable',
     'BasicVariable',
@@ -19,4 +19,6 @@ __all__ = [
     'EtaFromXYZVariable',
     'PhiFromXYZVariable',
     'BasicPrebinnedVariable',
+    "WithJacobian",
+    "NormalizePerBlock",
 ]
