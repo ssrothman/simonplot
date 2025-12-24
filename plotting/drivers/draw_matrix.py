@@ -117,11 +117,14 @@ def draw_matrix(variable : VariableProtocol,
         else:
             output_path = os.path.join(output_folder, output_prefix)
 
+        output_path += '_VAR-%s' % variable.key
         output_path += '_CUT-%s' % cut.key
         output_path += '_DSET-%s' % dataset.key
         
         if logc:
-            output_path += '_LOGC_TO_DO'
+            output_path += '_LOGC'
+        if sym:
+            output_path += '_SYM'
 
         savefig(fig, output_path)
     else:
