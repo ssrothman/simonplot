@@ -2,7 +2,7 @@ from turtle import up
 from plotting.typing.Protocols import VariableProtocol
 from simon_mpl_util.plotting.typing.Protocols import PrebinnedOperationProtocol
 from .VariableBase import VariableBase
-from typing import Sequence, override, List
+from typing import Sequence, assert_never, override, List
 import numpy as np
 
 class BasicPrebinnedVariable(VariableBase):
@@ -67,7 +67,36 @@ class WithJacobian(VariableBase):
         if not isinstance(cut, PrebinnedOperationProtocol):
             raise ValueError("PrebinnedDensityVariable requires a PrebinnedOperationProtocol cut")
         
-        hist = self._var.evaluate(dataset, cut)
+        evaluated = self._var.evaluate(dataset, cut)
+        if type(evaluated) is tuple:
+            hist, cov = evaluated
+            if len(hist.shape) != 1:
+                raise ValueError("evaluating _var (%s) resulted in a val,cov pair where val had shape %s (expected 1D)"%(self._var.key, hist.shape))
+            if len(cov.shape) != 2:
+                raise ValueError("evaluating _var (%s) resulted in a val,cov pair where cov had shape %s (expected 2D)"%(self._var.key, cov.shape))
+            if cov.shape != (len(hist), len(hist)):
+                raise ValueError("cov shape not the square of val shape!")
+            
+            thelen = len(hist)
+            thedtype = hist.dtype
+        else:
+            if len(evaluated.shape) == 1:
+                hist = evaluated
+                cov = None
+                thelen = len(hist)
+                thedtype = hist.dtype
+            elif len(evaluated.shape) == 2:
+                hist = None
+                cov = evaluated
+                thelen = cov.shape[0]
+                thedtype = cov.dtype
+            else:
+                raise RuntimeError("evaluating _var (%s) resulted in an unexpected shape! Should be either 1D or 2D, but got %s"%(self._var.key, evaluated.shape))
+
+        #after type checks we can be confident that
+        #hist = np.ndarray with shape (thelen,), or else None
+        #cov = np.ndarray with shape (thelen, thelen), or else None
+
         binning = cut.resulting_binning(dataset)
 
         lower_edges = binning.lower_edges()
@@ -91,25 +120,28 @@ class WithJacobian(VariableBase):
             else:
                 widths[key] = upper_edges[key] - lower_edges[key]
 
-        if type(hist) is tuple:
-            hist, cov = hist
-        else:
-            cov = None
-
-        jacobian = np.ones_like(hist)
+        jacobian = np.ones(shape = (thelen,), dtype= thedtype)
         for key in binning.axis_names:
             jacobian *= widths[key].ravel()
 
         jacobian[jacobian == 0] = 1.0 #avoid division by zero
-        density_hist = hist / jacobian
+
+        if hist is not None:
+            density_hist = hist / jacobian
 
         if cov is not None:
             density_jacobian = np.outer(jacobian, jacobian)
             density_cov = cov / density_jacobian
-            return density_hist, density_cov
+
+        if hist is None and cov is None:
+            raise ValueError("This shouldn't be possible. Somehow both val and cov are None?")
+        elif hist is None:
+            return density_cov # pyright: ignore[reportPossiblyUnboundVariable]
+        elif cov is None:
+            return density_hist # pyright: ignore[reportPossiblyUnboundVariable]
         else:
-            return density_hist
-    
+            return density_hist, density_cov # pyright: ignore[reportPossiblyUnboundVariable]
+
     def __eq__(self, other) -> bool:
         if not isinstance(other, WithJacobian):
             return False
