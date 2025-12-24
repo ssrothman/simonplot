@@ -69,7 +69,27 @@ def draw_matrix(variable : VariableProtocol,
     else:
         add_cms_legend(ax, True, lumi=dataset.lumi)
 
-    artist = ax.pcolormesh(mat, cmap=cmap, norm=normobj, rasterized=True)
+    if axis.Nax == 1: # axis edges cam be physical values!
+        edges = axis.edges[axis.axis_names[0]]
+
+        #need to clip +-inf
+        if edges[0] == -np.inf:
+            print("WARNING: clipping underflow bin")
+            edges = edges[1:]
+            mat = mat[1:, 1:]
+        if edges[-1] == +np.inf:
+            print("WARNING: clipping overflow bin")
+            edges = edges[:-1]
+            mat = mat[:-1, :-1]
+
+        artist = ax.pcolormesh(edges, edges, mat, cmap=cmap, norm=normobj, rasterized=True)
+
+        # attempt to detect logarithmic binning
+        if edges[-1]/edges[-2] > 0.5 * edges[1]/edges[0]:
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+    else:
+        artist = ax.pcolormesh(mat, cmap=cmap, norm=normobj, rasterized=True)
 
     the_xlabel = label_from_binning(axis)
     ax.set_xlabel(the_xlabel)

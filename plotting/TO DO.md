@@ -43,8 +43,6 @@ Might want to be a function of the variable key?
 
 Need to think a bit about what would be desireable here
 
-## Set axis bounds in draw_matrix() for 1D binning to be the actual axis bounds
-
 ## Show flow bins sensibly
 
 ## Prevent multipliers above the axis, which clashes with the CMS label text
