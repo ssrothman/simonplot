@@ -1,4 +1,5 @@
 from data_factory import synthetic_covdataset
+from plotting.variable.PrebinnedVariable import CorrelationFromCovariance
 from simon_mpl_util.plotting import draw_matrix
 
 from simon_mpl_util.plotting.variable import BasicPrebinnedVariable, ConstantVariable, WithJacobian, NormalizePerBlock
@@ -38,8 +39,9 @@ var2 = WithJacobian(var1, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, cl
 var3 = NormalizePerBlock(var1, axes=['pt'])
 var4 = NormalizePerBlock(var2, axes=['pt'])
 var5 = WithJacobian(var3, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
+var6 = CorrelationFromCovariance(var1)
 
-for var in [var2]:
+for var in [var2, var6]:
     draw_matrix(
         var,
         cut1,
