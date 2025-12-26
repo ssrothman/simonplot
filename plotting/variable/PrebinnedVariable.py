@@ -1,6 +1,6 @@
 from turtle import up
 from plotting.typing.Protocols import VariableProtocol
-from simon_mpl_util.plotting.typing.Protocols import PrebinnedOperationProtocol
+from simon_mpl_util.plotting.typing.Protocols import PrebinnedOperationProtocol, PrebinnedVariableProtocol
 from util.sanitization import maybe_valcov_to_definitely_valcov
 from .VariableBase import VariableBase
 from typing import Sequence, assert_never, override, List
@@ -35,8 +35,36 @@ class BasicPrebinnedVariable(VariableBase):
     def __eq__(self, other) -> bool:
         return isinstance(other, BasicPrebinnedVariable)
     
+    @property
+    def label(self) -> str:
+        return "Bin counts"
+    
+    @property
+    def matrixlabel(self) -> str:
+        return "Covariance"
+    
+    @property
+    def hasjacobian(self) -> bool:
+        return False
+
+    @property
+    def normalized_blocks(self) -> List[str]:
+        return []
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        return False
+
+    @property
+    def jac_details(self) -> dict:
+        return {
+            'radial_coords' : [],
+            'clip_negativeinf' : {},
+            'clip_positiveinf' : {}
+        }
+
 class WithJacobian(VariableBase):
-    def __init__(self, variable : VariableProtocol, 
+    def __init__(self, variable : PrebinnedVariableProtocol, 
                  radial_coords : Sequence[str],
                  clip_negativeinf : dict[str, float] = {},
                  clip_positiveinf : dict[str, float] = {}):
@@ -128,10 +156,34 @@ class WithJacobian(VariableBase):
     def set_collection_name(self, collection_name):
         raise ValueError("Prebinned Variables do not support set_collection_name")
 
+    @property
+    def hasjacobian(self) -> bool:
+        return True
+
+    @property
+    def normalized_blocks(self) -> List[str]:
+        return self._var.normalized_blocks
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        return self._var.normalized_by_err
+                   
+    @property
+    def jac_details(self) -> dict:
+        return {
+            'radial_coords' : self._radial_coords,
+            'clip_negativeinf' : self._clip_negativeinf,
+            'clip_positiveinf' : self._clip_positiveinf
+        }
+    
 class NormalizePerBlock(VariableBase):
-    def __init__(self, variable : VariableProtocol, axes : List[str]):
+    def __init__(self, variable : PrebinnedVariableProtocol, axes : List[str]):
         self._var = variable
         self._axes = axes
+        if self._var.hasjacobian:
+            raise ValueError("NormalizePerBlock should be applied BEFORE jacobian!")
+        if self._var.normalized_by_err:
+            raise ValueError("NormalizePerBlock should be applied BEFORE normalization by error (ie CorrelationFromCovariance)!")
 
     @property
     def _natural_centerline(self):
@@ -172,13 +224,33 @@ class NormalizePerBlock(VariableBase):
     
     @property 
     def key(self):
-        return "NormalizePerBlock(%s)" % self._var.key
+        return "NormalizePerBlock(%s-%s)" % (self._var.key, '-'.join(self._axes))
 
     def set_collection_name(self, collection_name):
         raise ValueError("Prebinned Variables do not support set_collection_name")
 
+    @property
+    def covlabel(self) -> str:
+        return "Covariance on normalized blocks"
+
+    @property
+    def hasjacobian(self) -> bool:
+        return self._var.hasjacobian
+
+    @property
+    def normalized_blocks(self) -> List[str]:
+        return self._axes
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        return self._var.normalized_by_err
+
+    @property
+    def jac_details(self) -> dict:
+        return self._var.jac_details
+
 class CorrelationFromCovariance(VariableBase):
-    def __init__(self, variable : VariableProtocol):
+    def __init__(self, variable : PrebinnedVariableProtocol):
         self._var = variable
 
     @property
@@ -227,8 +299,24 @@ class CorrelationFromCovariance(VariableBase):
     def set_collection_name(self, collection_name):
         raise ValueError("Prebinned Variables do not support set_collection_name")
     
+    @property
+    def hasjacobian(self) -> bool:
+        return self._var.hasjacobian
+    
+    @property
+    def normalized_blocks(self) -> List[str]:
+        return self._var.normalized_blocks
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        return True
+
+    @property
+    def jac_details(self) -> dict:
+        return self._var.jac_details
+
 class _ExtractCovarianceMatrix(VariableBase):
-    def __init__(self, variable : VariableProtocol):
+    def __init__(self, variable : PrebinnedVariableProtocol):
         self._var = variable
 
     @property
@@ -266,3 +354,19 @@ class _ExtractCovarianceMatrix(VariableBase):
             raise RuntimeError("ExtractCovarianceMatrix needs covariance!!")
         
         return cov
+    
+    @property
+    def hasjacobian(self) -> bool:
+        return self._var.hasjacobian
+    
+    @property
+    def normalized_blocks(self) -> List[str]:
+        return self._var.normalized_blocks
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        return self._var.normalized_by_err
+    
+    @property
+    def jac_details(self) -> dict:
+        return self._var.jac_details

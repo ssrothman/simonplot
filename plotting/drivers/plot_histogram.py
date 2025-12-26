@@ -1,3 +1,5 @@
+from plotting.config.lookuputil import lookup_axis_label
+from plotting.typing.Protocols import PrebinnedVariableProtocol
 from simon_mpl_util.plotting.config import config, check_auto_logx
 
 from simon_mpl_util.plotting.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, VariableProtocol, BaseDatasetProtocol, BaseBinningProtocol, AutoBinningProtocol, DefaultBinningProtocol, PrebinnedBinningProtocol, BasicBinningProtocol
@@ -242,9 +244,53 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         extra_ylabel = ''
 
     if isinstance(axis, ArbitraryBinning) and axis.Nax > 1:
-        ax_main.set_ylabel("Counts per bin" + extra_ylabel)
+        if not isinstance(variable[0], PrebinnedVariableProtocol):
+            raise RuntimeError("Prebinned Binning requires PrebinnedVariable!")
+        
+        v = variable[0]
+        if v.normalized_by_err:
+            ylabel = '$\\frac{N}{\\sigma_N}$'
+        elif v.hasjacobian:
+            denom = ''
+            for ax in axis.axis_names:
+                l = strip_dollar_signs(strip_units(lookup_axis_label(ax)))
+                if ax in v.jac_details['radial_coords']:
+                    denom += l + 'd' + l
+                else:
+                    denom += 'd' + l
+            ylabel = '$\\frac{dN}{%s}$' % denom
+        else:
+            ylabel = 'Bin counts'
+
+        if v.normalized_blocks:
+            normvars = v.normalized_blocks
+            if len(normvars) == 1:
+                binsid = strip_units(lookup_axis_label(normvars[0]))
+            else:
+                binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(vv)) for vv in normvars])
+
+            ylabel += ' (normalized per %s bin)' % binsid
+
+        ylabel_fontsize_offset = 0
+        
+        ax_main.set_ylabel(ylabel + extra_ylabel, fontsize=config['ylabel_fontsize'])
+
+        #get label extent on the plot
+        label_extent = ax_main.yaxis.get_label().get_window_extent(renderer=fig.canvas.get_renderer())
+        # transform label extent into units where 0 = top of axis, 1 = bottom of axis
+        label_extent = label_extent.transformed(ax_main.transAxes.inverted())
+        while(label_extent.y0 < 0.0):
+            ylabel_fontsize_offset = ylabel_fontsize_offset + 1
+            ax_main.set_ylabel(ylabel + extra_ylabel, fontsize=config['ylabel_fontsize'] - ylabel_fontsize_offset)
+            label_extent = ax_main.yaxis.get_label().get_window_extent(renderer=fig.canvas.get_renderer())
+            label_extent = label_extent.transformed(ax_main.transAxes.inverted())
+
+        if ylabel_fontsize_offset > 0:
+            print("Warning: ylabel font size had to be reduced by %d to fit into axis!" % ylabel_fontsize_offset)
     else:
         ax_main.set_ylabel('$\\frac{dN}{d%s}$ %s' % (strip_dollar_signs(strip_units(the_xlabel)), extra_ylabel))
+
+        
 
     if logx:
         ax_main.set_xscale('log')

@@ -66,6 +66,32 @@ class VariableProtocol(VariableLikeProtocol, Protocol):
     def centerline(self) -> None | float | Sequence[float]:
         ...
 
+#specialize prebinned template
+@runtime_checkable
+class PrebinnedVariableProtocol(VariableLikeProtocol, Protocol):
+    def evaluate(self, dataset : "PrebinnedDatasetAccessProtocol", cut : PrebinnedOperationProtocol) -> np.ndarray | Tuple[np.ndarray, np.ndarray]:
+        ...
+
+    @property
+    def hasjacobian(self) -> bool:
+        ...
+
+    @property
+    def jac_details(self) -> dict[str, Any]:
+        ...
+
+    @property
+    def normalized_blocks(self) -> List[str]:
+        ...
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        ...
+        
+    @property
+    def centerline(self) -> None | float | Sequence[float]:
+        ...
+
 class BinningKind(IntEnum):
     AUTO = 0
     DEFAULT = 1

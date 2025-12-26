@@ -25,8 +25,8 @@ cut8 = ProjectAndSliceOperation(
 )
 weight = ConstantVariable(1.0)
 
-for cut in [cut1, cut2, cut3, cut4, cut5, cut6, cut7, cut8]:
-#for cut in []:
+#for cut in [cut1, cut2, cut3, cut4, cut5, cut6, cut7, cut8]:
+for cut in []:
     draw_matrix(
         var1,
         cut,
@@ -37,12 +37,12 @@ for cut in [cut1, cut2, cut3, cut4, cut5, cut6, cut7, cut8]:
 
 var2 = WithJacobian(var1, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
 var3 = NormalizePerBlock(var1, axes=['pt'])
-var4 = NormalizePerBlock(var2, axes=['pt'])
+var4 = NormalizePerBlock(var1, axes=['pt', 'r'])
 var5 = WithJacobian(var3, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
 var6 = CorrelationFromCovariance(var1)
 
-for var in [var2, var3, var4, var5, var6]:
-#for var in [var2, var6]:
+#for var in [var2, var3, var4, var5, var6]:
+for var in [var4]:
     draw_matrix(
         var,
         cut1,

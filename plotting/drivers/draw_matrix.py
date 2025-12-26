@@ -4,16 +4,17 @@ from typing import Union, List, Literal, get_args
 import matplotlib
 from matplotlib.colors import Normalize, SymLogNorm, LogNorm
 
+from plotting.config.lookuputil import lookup_axis_label
 from plotting.variable.PrebinnedVariable import _ExtractCovarianceMatrix
-from simon_mpl_util.plotting.typing.Protocols import PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol, VariableProtocol
-from simon_mpl_util.plotting.util.common import add_text, label_from_binning, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend
+from simon_mpl_util.plotting.typing.Protocols import PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol, PrebinnedVariableProtocol, VariableProtocol
+from simon_mpl_util.plotting.util.common import add_text, label_from_binning, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend, strip_units
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 _ALLOWED_NORMS = Literal["none", "ax1", "ax2", "correl"]
 
-def draw_matrix(variable : VariableProtocol,
+def draw_matrix(variable : PrebinnedVariableProtocol,
                 cut: PrebinnedOperationProtocol, 
                 dataset: PrebinnedDatasetProtocol,
                 binning : PrebinnedBinningProtocol,
@@ -88,7 +89,11 @@ def draw_matrix(variable : VariableProtocol,
         artist = ax.pcolormesh(edges, edges, mat, cmap=cmap, norm=normobj, rasterized=True)
 
         # attempt to detect logarithmic binning
-        if edges[-1]/edges[-2] > 0.5 * edges[1]/edges[0]:
+        # if bin spacing between first two bins is much smaller than 
+        # spacing between last two bins, assume log binning
+        lower = edges[1] - edges[0]
+        upper = edges[-1] - edges[-2]
+        if upper / lower > 2:
             ax.set_xscale('log')
             ax.set_yscale('log')
     else:
@@ -100,7 +105,23 @@ def draw_matrix(variable : VariableProtocol,
 
     cbar = fig.colorbar(artist, ax=ax)
     
-    cbarlabel = 'LABEL TO DO'
+    if variable.normalized_by_err:
+        cbarlabel = 'Correlation'
+    else:
+        if variable.hasjacobian:
+            cbarlabel = 'Covariance density'
+        else:
+            cbarlabel = 'Covariance'
+
+    if variable.normalized_blocks:
+        normvars = variable.normalized_blocks
+        if len(normvars) == 1:
+            binsid = strip_units(lookup_axis_label(normvars[0]))
+        else:
+            binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(v)) for v in normvars])
+
+        cbarlabel += ' (normalized per %s bin)' % binsid
+
     cbar.set_label(cbarlabel)
 
     add_text(ax, cut, extratext)

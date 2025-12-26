@@ -13,10 +13,6 @@ And when things do break, it would be nice to have readable error messages, inst
  - Check if prebinned histograms really are the expected shape
  - ...
 
-## Labels for prebinned data
-
-Need a scheme for intelligently setting y-axis (in plot_histogram()) and colorbar (in draw_matrix() and draw_radial_histogram()) labels for prebinned data. This should inteligently handle when there has been jacobian or per-block normalizations...
-
 ## Handling non-square covariance matrices
 
 Need to track variances along each axis
@@ -35,6 +31,8 @@ Need to take into account what is being plotted (covariance matrices should alwa
 
 Might want to be a function of the variable key? 
 
+Thinking about this more, not sure there's a good general sollution. Might just have to pass a forced value in edge cases...
+
 ## Automatic logc setting in draw_matrix()
 
 Need to think a bit about what would be desireable here
@@ -46,3 +44,5 @@ Need to think a bit about what would be desireable here
 This is easy I think, just need to google it when I'm back in internet :)
 
 I've done something, not sure if it fixes. Will revisit if/when I reproduce the problem naturally.
+
+## Need to detect clash between main axis label and ratio axis label

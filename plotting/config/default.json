@@ -1,5 +1,6 @@
 {
     "figsize": [12, 10],
+    "ylabel_fontsize" : 24,
     "cms_label" : "Work in Progress",
     "ratiopad" : {
         "height" : 0.5,
@@ -26,7 +27,8 @@
     "axis_labels": {
         "pt" : "$p_{T}$ [GeV]",
         "eta" : "$\\eta$",
-        "phi" : "$\\phi$"
+        "phi" : "$\\phi$",
+        "r" : "$r$"
     },
     "auto_logx_patterns" : [
         "*pt",
