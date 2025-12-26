@@ -44,3 +44,5 @@ Need to think a bit about what would be desireable here
 ## Prevent multipliers above the axis, which clashes with the CMS label text
 
 This is easy I think, just need to google it when I'm back in internet :)
+
+I've done something, not sure if it fixes. Will revisit if/when I reproduce the problem naturally.
