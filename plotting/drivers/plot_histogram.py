@@ -1,5 +1,6 @@
 from plotting.config.lookuputil import lookup_axis_label
 from plotting.typing.Protocols import PrebinnedVariableProtocol
+from plotting.util.common import add_axis_label
 from simon_mpl_util.plotting.config import config, check_auto_logx
 
 from simon_mpl_util.plotting.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, VariableProtocol, BaseDatasetProtocol, BaseBinningProtocol, AutoBinningProtocol, DefaultBinningProtocol, PrebinnedBinningProtocol, BasicBinningProtocol
@@ -214,8 +215,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             smallest_nontrivial_ratio - pad,
             largest_nontrivial_ratio + pad
         )
-            
-        ax_pad.set_xlabel(the_xlabel) # pyright: ignore[reportPossiblyUnboundVariable]
+        
+        add_axis_label(ax_pad, the_xlabel, which='x') # pyright: ignore[reportPossiblyUnboundVariable]
 
         if pulls:
             extra_ylabel = ' [pull]'
@@ -223,20 +224,21 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             extra_ylabel = ''
 
         if nolegend:
-            ax_pad.set_ylabel("Ratio" + extra_ylabel) # pyright: ignore[reportPossiblyUnboundVariable]
+            pad_ylabel = 'Ratio' + extra_ylabel
         else:
             if isdata:
-                ax_pad.set_ylabel('Data/MC' + extra_ylabel) # pyright: ignore[reportPossiblyUnboundVariable]
+                pad_ylabel = 'Data/MC' + extra_ylabel
             else:
                 if style_from_dset:
                     denomlabel = dataset[0].label
                 else:
                     denomlabel = labels[0]
 
-                ax_pad.set_ylabel(('%s/MC' % denomlabel) + extra_ylabel) # pyright: ignore[reportPossiblyUnboundVariable]
+                pad_ylabel = ('%s/MC' % denomlabel) + extra_ylabel
 
+        add_axis_label(ax_pad, pad_ylabel, which='y') # pyright: ignore[reportPossiblyUnboundVariable]
     else:
-        ax_main.set_xlabel(the_xlabel) 
+        add_axis_label(ax_main, the_xlabel, which='x')
 
     if density:
         extra_ylabel = ' [Normalized]'
@@ -271,26 +273,11 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
             ylabel += ' (normalized per %s bin)' % binsid
 
-        ylabel_fontsize_offset = 0
-        
-        ax_main.set_ylabel(ylabel + extra_ylabel, fontsize=config['ylabel_fontsize'])
-
-        #get label extent on the plot
-        label_extent = ax_main.yaxis.get_label().get_window_extent(renderer=fig.canvas.get_renderer())
-        # transform label extent into units where 0 = top of axis, 1 = bottom of axis
-        label_extent = label_extent.transformed(ax_main.transAxes.inverted())
-        while(label_extent.y0 < 0.0):
-            ylabel_fontsize_offset = ylabel_fontsize_offset + 1
-            ax_main.set_ylabel(ylabel + extra_ylabel, fontsize=config['ylabel_fontsize'] - ylabel_fontsize_offset)
-            label_extent = ax_main.yaxis.get_label().get_window_extent(renderer=fig.canvas.get_renderer())
-            label_extent = label_extent.transformed(ax_main.transAxes.inverted())
-
-        if ylabel_fontsize_offset > 0:
-            print("Warning: ylabel font size had to be reduced by %d to fit into axis!" % ylabel_fontsize_offset)
     else:
-        ax_main.set_ylabel('$\\frac{dN}{d%s}$ %s' % (strip_dollar_signs(strip_units(the_xlabel)), extra_ylabel))
+        ylabel = '$\\frac{dN}{d%s}$' % (strip_dollar_signs(strip_units(the_xlabel)))
 
-        
+    ylabel += extra_ylabel
+    add_axis_label(ax_main, ylabel, which='y')
 
     if logx:
         ax_main.set_xscale('log')

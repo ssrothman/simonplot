@@ -1,6 +1,7 @@
 {
     "figsize": [12, 10],
     "ylabel_fontsize" : 24,
+    "xlabel_fontsize" : 24,
     "cms_label" : "Work in Progress",
     "ratiopad" : {
         "height" : 0.5,

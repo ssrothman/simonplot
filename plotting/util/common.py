@@ -234,6 +234,33 @@ def make_fancy_prebinned_labels(ax : matplotlib.axes.Axes,
 
     return fontsize_offset, fallback_rotation
 
+def add_axis_label(ax : matplotlib.axes.Axes, label : str, which : Literal['x', 'y']):
+    default_fontsize = config['%slabel_fontsize'%(which)]
+    fontsize_offset = 0
+    
+    
+    if which == 'y':
+        setlabel_func = ax.set_ylabel
+    else:
+        setlabel_func = ax.set_xlabel
+
+    setlabel_func(label, fontsize=default_fontsize)
+
+    #get label extent on the plot
+    label_extent = ax.yaxis.get_label().get_window_extent(renderer=ax.figure.canvas.get_renderer()) # pyright: ignore[reportAttributeAccessIssue]
+    # transform label extent into units where 0 = top of axis, 1 = bottom of axis
+    label_extent = label_extent.transformed(ax.transAxes.inverted())
+    while (which == 'y' and label_extent.y0 < 0.0) or (which == 'x' and label_extent.x0 < 0.0):
+        fontsize_offset = fontsize_offset + 1
+        setlabel_func(label, fontsize=default_fontsize - fontsize_offset)
+        label_extent = ax.yaxis.get_label().get_window_extent(renderer=ax.figure.canvas.get_renderer()) # pyright: ignore[reportAttributeAccessIssue]
+        label_extent = label_extent.transformed(ax.transAxes.inverted())
+
+    if fontsize_offset > 0:
+        print("Warning: %s-axis label font size had to be reduced by %d points to fit into axis!" % (which, fontsize_offset))
+
+    return fontsize_offset
+
 def draw_legend(ax: matplotlib.axes.Axes, nolegend: bool, scale: float=1.0, loc: Union[str, int, tuple] ='best'):
     if not nolegend:
         if type(loc) in [int, str]:
