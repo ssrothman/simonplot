@@ -1,4 +1,4 @@
-# simon_mpl_util  <!-- omit from toc -->
+# simonplot  <!-- omit from toc -->
 
 This package provides common matplotlib utilities that I use across several projects. The core ingredients are:
 
