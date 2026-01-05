@@ -8,7 +8,7 @@
         "hspace" : 0.0,
         "auto_ylim" : {
             "padding" : 0.15,
-            "percentile" : 0.99,
+            "percentile" : 97.5,
             "min_threshold" : 0.2
         }
     },

@@ -192,14 +192,15 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                 pulls = pulls
             )
 
-            ratiothreshold = np.nanpercentile(ratioerrs, config['ratiopad']['auto_ylim']['percentile']) 
+            basemask = np.isfinite(ratiovals)
+            ratiothreshold = np.nanpercentile(ratioerrs[basemask], config['ratiopad']['auto_ylim']['percentile']) 
             ratiothreshold = max(ratiothreshold, config['ratiopad']['auto_ylim']['min_threshold'])
 
-            ratiomask = ratioerrs < ratiothreshold
+            ratiomask = (ratioerrs < ratiothreshold) & basemask
             if np.sum(ratiomask) == 0:
                 ratiothreshold = np.nanmin(ratioerrs) + 1e-6
                 ratiomask = ratioerrs < ratiothreshold
-
+            
             largest_nontrivial_ratio = max(
                 largest_nontrivial_ratio,
                 np.nanmax(ratiovals[ratiomask])
@@ -213,9 +214,11 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             maxthreshold = max(maxthreshold, ratiothreshold)
 
         pad = config['ratiopad']['auto_ylim']['padding'] + maxthreshold
+        original_ylim = ax_pad.get_ylim()  # pyright: ignore[reportPossiblyUnboundVariable]
+        print(original_ylim)
         ax_pad.set_ylim( # pyright: ignore[reportPossiblyUnboundVariable]
-            smallest_nontrivial_ratio - pad,
-            largest_nontrivial_ratio + pad
+            max(smallest_nontrivial_ratio - pad, original_ylim[0]),
+            min(largest_nontrivial_ratio + pad, original_ylim[1])
         )
         
         add_axis_label(ax_pad, the_xlabel, which='x') # pyright: ignore[reportPossiblyUnboundVariable]
@@ -233,10 +236,38 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             else:
                 if style_from_dset:
                     denomlabel = dataset[0].label
+                    alllabels = [d.label for d in dataset] # pyright: ignore[reportAssignmentType]
+
                 else:
                     denomlabel = labels[0]
+                    alllabels = labels
 
-                pad_ylabel = ('%s/MC' % denomlabel) + extra_ylabel
+                if not isinstance(denomlabel, str):
+                    raise ValueError("dataset label is not str!")
+
+                for l in alllabels:
+                    if not isinstance(l, str):
+                        raise ValueError("dataset label is not str!")
+
+                #now we know that alllabels is definitely a list of str
+                alllabels : List[str]
+
+                #find common initial pieces of all dataset labels
+                common_prefix = os.path.commonprefix(alllabels)
+                print(denomlabel)
+                denomlabel = denomlabel[len(common_prefix):]
+                print("truncated to", denomlabel)
+
+                if len(labels) == 2:
+                    print(alllabels[1])
+                    numlabel = alllabels[1][len(common_prefix):]
+                    print("truncated to", numlabel)
+
+                    pad_ylabel = ('%s/%s'%(denomlabel, numlabel))
+                else:
+                    pad_ylabel =('%s/MC' % denomlabel) 
+
+                pad_ylabel =pad_ylabel + extra_ylabel
 
         add_axis_label(ax_pad, pad_ylabel, which='y') # pyright: ignore[reportPossiblyUnboundVariable]
     else:
