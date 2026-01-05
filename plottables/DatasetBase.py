@@ -397,6 +397,7 @@ class DatasetStackBase(DatasetBase):
         else:   
             (artist, vals) = call_histplot_function(
                 self.H, 
+                axis,
                 ax = ax,
                 density=density,
                 fillbetween = fillbetween,
