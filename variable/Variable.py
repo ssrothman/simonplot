@@ -33,6 +33,7 @@ class ConstantVariable(VariableBase):
             val = np.ones_like(mask) * self._value
         elif isinstance(mask, slice):
             val = np.array([self._value])
+            val = np.repeat(val, dataset.num_rows)
         else: 
             assert_never(mask)
 
