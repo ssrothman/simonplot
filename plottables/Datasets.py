@@ -64,12 +64,12 @@ class NanoEventsDataset(SingleDatasetBase):
         return len(self._events)
     
 class ParquetDataset(SingleDatasetBase):
-    def __init__(self, key : str, color : str | None, label : str, path):
+    def __init__(self, key : str, color : str | None, label : str, path, filesystem=None):
         self._key = key
         self._color = color
         self._label = label
 
-        self._dataset = ds.dataset(path, format="parquet")
+        self._dataset = ds.dataset(path, format="parquet", filesystem=filesystem)
             
     def ensure_columns(self, columns):
         has_everything = True

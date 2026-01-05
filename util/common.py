@@ -250,7 +250,7 @@ def add_axis_label(ax : matplotlib.axes.Axes, label : str, which : Literal['x', 
     label_extent = ax.yaxis.get_label().get_window_extent(renderer=ax.figure.canvas.get_renderer()) # pyright: ignore[reportAttributeAccessIssue]
     # transform label extent into units where 0 = top of axis, 1 = bottom of axis
     label_extent = label_extent.transformed(ax.transAxes.inverted())
-    while (which == 'y' and label_extent.y0 < 0.0) or (which == 'x' and label_extent.x0 < 0.0):
+    while (which == 'y' and label_extent.y0 < 0.0):
         fontsize_offset = fontsize_offset + 1
         setlabel_func(label, fontsize=default_fontsize - fontsize_offset)
         label_extent = ax.yaxis.get_label().get_window_extent(renderer=ax.figure.canvas.get_renderer()) # pyright: ignore[reportAttributeAccessIssue]

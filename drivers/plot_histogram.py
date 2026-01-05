@@ -1,3 +1,4 @@
+from bleach import clean
 from simonplot.config.lookuputil import lookup_axis_label
 from simonplot.typing.Protocols import PrebinnedVariableProtocol
 from simonplot.util.common import add_axis_label
@@ -9,11 +10,12 @@ from simonplot.util.common import setup_canvas, add_cms_legend, savefig, add_tex
 
 from simonpy.AribtraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
-from simonpy.text import strip_units, strip_dollar_signs
+from simonpy.text import clean_string, strip_units, strip_dollar_signs
 
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+import hist
 
 from typing import List, Sequence, Tuple, Union
 
@@ -26,7 +28,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                    extratext : Union[str, None] = None,
                    density: bool = False,
                    logx: Union[bool, None] = None,
-                   logy: bool = False,
+                   logy: bool = True,
                    pulls : bool = False,
                    no_ratiopad : bool = False,
                    output_folder: Union[str, None] = None,
@@ -255,11 +257,11 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         elif v.hasjacobian:
             denom = ''
             for ax in axis.axis_names:
-                l = strip_dollar_signs(strip_units(lookup_axis_label(ax)))
+                l = clean_string(lookup_axis_label(ax))
                 if ax in v.jac_details['radial_coords']:
-                    denom += l + 'd' + l
+                    denom += l + 'd(' + l + ')'
                 else:
-                    denom += 'd' + l
+                    denom += 'd(' + l + ')'
             ylabel = '$\\frac{dN}{%s}$' % denom
         else:
             ylabel = 'Bin counts'
@@ -274,7 +276,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             ylabel += ' (normalized per %s bin)' % binsid
 
     else:
-        ylabel = '$\\frac{dN}{d%s}$' % (strip_dollar_signs(strip_units(the_xlabel)))
+        ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
 
     ylabel += extra_ylabel
     add_axis_label(ax_main, ylabel, which='y')
@@ -286,9 +288,15 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
     if logy: # sometimes logarithmic y axes end up with perverse ranges
         ylim = ax_main.get_ylim()
-        min_trueY = np.max(Hs[0][0])
-        for H in Hs:
-            Hmin = np.min(H[0][H[0] > 0])
+
+        if isinstance(Hs[0], hist.Hist):
+            Hvals = [H.values(flow=True) for H in Hs]
+        else:
+            Hvals = [H[0] for H in Hs]
+
+        min_trueY = np.max(Hvals)
+        for H in Hvals:
+            Hmin = np.min(H[H > 0])
             if min_trueY is None or Hmin < min_trueY:
                 min_trueY = Hmin
 

@@ -1,7 +1,7 @@
 import json
 import os
 
-from simon_mpl_util.util.dictmerge import merge_dict
+from simonpy.dictmerge import merge_dict
 
 #first lookup path to the directory containing this file
 current_dir = os.path.dirname(__file__)

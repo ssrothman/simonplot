@@ -1,3 +1,4 @@
+from ast import TypeVar
 import numpy as np
 import awkward as ak
 
@@ -144,6 +145,24 @@ class DatasetBase(ABC):
 class SingleDatasetBase(DatasetBase):
     _H : Any
 
+    @abstractmethod
+    def ensure_columns(self, columns: Sequence[str]):
+        raise NotImplementedError()
+
+    def get_range(self, var : VariableProtocol, cut : CutProtocol) -> Tuple[Any, Any, Any, np.dtype]:
+        needed_columns = list(set(var.columns + cut.columns))
+        
+        self.ensure_columns(needed_columns)
+
+        v = var.evaluate(self, cut) # pyright: ignore[reportArgumentType]
+        values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
+
+        minval = np.nanmin(values)
+        minval2 = np.nanmin(values[values > 0])
+        maxval = np.nanmax(values)
+
+        return (minval, minval2, maxval, values.dtype)
+
     @property
     def is_stack(self) -> bool:
         return False
@@ -260,6 +279,14 @@ class SingleDatasetBase(DatasetBase):
 class DatasetStackBase(DatasetBase):
     _datasets : Sequence[BaseDatasetProtocol]
     
+    def get_range(self, var : VariableProtocol, cut : CutProtocol) -> Tuple[Any, Any, Any, np.dtype]:
+
+        results = [d.get_range(var, cut) for d in self._datasets]
+        minval = np.min([r[0] for r in results])
+        minval2 = np.min([r[1] for r in results])
+        maxval = np.max([r[2] for r in results])
+        return (minval, minval2, maxval, results[0][0].dtype)
+
     @property
     def binning(self) -> ArbitraryBinning:
         if len(self._datasets) == 0:

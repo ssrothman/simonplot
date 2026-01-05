@@ -1,4 +1,4 @@
-from typing import List, Sequence, Never, Protocol, Any, Union, Sequence, Tuple, runtime_checkable
+from typing import List, Sequence, Never, Protocol, Any, TypeVar, Union, Sequence, Tuple, runtime_checkable
 import awkward as ak
 import matplotlib.axes
 import numpy as np
@@ -6,6 +6,7 @@ import hist
 from enum import IntEnum
 from typing import overload
 
+from iadd import T
 from simonpy.AribtraryBinning import ArbitraryBinning
 
 @runtime_checkable
@@ -141,6 +142,9 @@ class PrebinnedBinningProtocol(BaseBinningProtocol, Protocol):
 type AnyBinningProtocol = AutoBinningProtocol | DefaultBinningProtocol | BasicBinningProtocol | PrebinnedBinningProtocol
 
 class BaseDatasetProtocol(Protocol):
+    def get_range(self, var : VariableProtocol, cut : CutProtocol) -> Tuple[Any, Any, Any, np.dtype]:
+        ...
+
     @property
     def is_stack(self) -> bool:
         ...

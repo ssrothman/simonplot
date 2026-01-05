@@ -99,7 +99,7 @@ def place_text(ax, text, loc, fontsize=24, bbox_opts={}):
         for opt in options:
             #print("Attempting option", len(badnesses))
             text_bbox = get_text_bbox(ax, text, opt, fontsize, bbox_opts)
-
+            text_bbox = text_bbox.expanded(1.2, 1.2)  #add padding
             badness = 0
 
             for ol in other_lines:

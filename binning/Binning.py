@@ -1,6 +1,6 @@
 from simonplot.config import config, lookup_axis_label
 
-from simonplot.typing.Protocols import VariableProtocol, CutProtocol, PrebinnedOperationProtocol, BinningKind
+from simonplot.typing.Protocols import BaseDatasetProtocol, PrebinnedDatasetProtocol, PrebinnedDatasetProtocol, UnbinnedDatasetProtocol, VariableProtocol, CutProtocol, PrebinnedOperationProtocol, BinningKind
 
 from simonpy.AribtraryBinning import ArbitraryBinning
 
@@ -82,7 +82,7 @@ class AutoBinning(BinningBase):
     def build_auto_axis(self, 
                         variables: List[VariableProtocol], 
                         cuts: List[CutProtocol], 
-                        datasets: List[Any], 
+                        datasets: List[BaseDatasetProtocol], 
                         transform: Union[str, None]=None) -> hist.axis.AxesMixin:
 
         lens = []
@@ -91,14 +91,17 @@ class AutoBinning(BinningBase):
         dtypes = []
         for var, cut, dataset in zip(variables, cuts, datasets):
             needed_columns = list(set(var.columns + cut.columns))
-            dataset.ensure_columns(needed_columns)
-            v = var.evaluate(dataset, cut)
-            values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
-            values = values[np.isfinite(values)]
-            lens.append(len(values))
-            minvals.append(np.nanmin(values))
-            maxvals.append(np.nanmax(values))
-            dtypes.append(values.dtype)
+
+            #dataset.ensure_columns(needed_columns)
+            minval, minval2, maxval, dtype = dataset.get_range(var, cut)
+            if transform == 'log':
+                minvals.append(minval2)
+            else:
+                minvals.append(minval)
+
+            maxvals.append(maxval)
+            lens.append(dataset.num_rows)
+            dtypes.append(dtype)
 
         minval = np.min(minvals, axis=None)
         maxval = np.max(maxvals, axis=None)
@@ -108,7 +111,7 @@ class AutoBinning(BinningBase):
             maxval += 0.5
 
         minlen = min(lens)
-
+        
         dtype = dtypes[0]
 
         if self._force_low is not None:
