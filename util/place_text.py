@@ -1,12 +1,22 @@
+from sys import path
+from typing import Any, Sized
+import matplotlib
+from matplotlib.legend import Legend
+from matplotlib.path import Path
 import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
+import mplhep
 import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import (Patch, Rectangle, Shadow, FancyBboxPatch,
                                 StepPatch)
+import matplotlib.axis
+import matplotlib.spines
 from matplotlib.text import Text
 from matplotlib.collections import (
     Collection, CircleCollection, LineCollection, PathCollection,
     PolyCollection, RegularPolyCollection)
+import re
 
 options = [
     (0.05, 0.95, 'top', 'left'),
@@ -36,16 +46,26 @@ option_names = [
     'center-center',
 ]
 
-def get_other_objects(ax):
+def get_other_objects(ax) -> tuple[list[Path], list[Any], list[Bbox]]:
     lines = []
     offsets = []
     bboxes = []
 
     for artist in ax.get_children():
-        if isinstance(artist, Line2D):
+        #skip some things on purpose
+        if isinstance(artist, mplhep.label.ExpText) or isinstance(artist, mplhep.label.ExpSuffix) or isinstance(artist, mplhep.label.SuppText):
+            continue
+        elif isinstance(artist, matplotlib.axis.Axis):
+            continue
+        elif isinstance(artist, matplotlib.spines.Spine):
+            continue
+        elif isinstance(artist, Line2D):
             lines.append(
                 artist.get_transform().transform_path(artist.get_path()))
         elif isinstance(artist, Rectangle):
+            bb = artist.get_bbox()
+            if bb.x0 == 0 and bb.y0 == 0 and bb.x1 == 1 and bb.y1 == 1:
+                continue
             bboxes.append(
                 artist.get_bbox().transformed(artist.get_data_transform()))
         elif isinstance(artist, Patch):
@@ -58,12 +78,19 @@ def get_other_objects(ax):
             transform, transOffset, hoffsets, _ = artist._prepare_points() # pyright: ignore[reportAttributeAccessIssue]
             if len(hoffsets):
                 offsets.extend(transOffset.transform(hoffsets))
-        elif isinstance(artist, Text):
+        elif isinstance(artist, Text) or isinstance(artist, Legend):
+            if isinstance(artist, Text):
+                thetext = artist.get_text()
+                if thetext == "":
+                    continue
+                elif re.fullmatch('^\\([0-9]* TeV\\)$', thetext.strip()):
+                    continue
+
             bboxes.append(artist.get_window_extent(renderer=ax.figure.canvas.get_renderer()))
 
     return lines, offsets, bboxes
 
-def get_text_bbox(ax, text, option, fontsize=24, bbox_opts={}):
+def get_text_bbox(ax, text, option, fontsize=24, bbox_opts={}) -> Bbox:
     fig = ax.figure
     tmp_txt = ax.text(
         option[0], option[1], text,
@@ -78,7 +105,7 @@ def get_text_bbox(ax, text, option, fontsize=24, bbox_opts={}):
     tmp_txt.remove()
     return bbox
 
-def compute_overlap_area(bbox1, bbox2):
+def bbox_overlap_area(bbox1, bbox2):
     x_left = max(bbox1.x0, bbox2.x0)
     y_top = max(bbox1.y0, bbox2.y0)
     x_right = min(bbox1.x1, bbox2.x1)
@@ -89,6 +116,34 @@ def compute_overlap_area(bbox1, bbox2):
 
     return (x_right - x_left) * (y_bottom - y_top)
 
+def path_overlap_area(bbox: Bbox, path : Path):
+    '''
+    Bbox is a matplotlib.transforms.Bbox object representing a rectangle
+    path is a matplotlib.path.Path object representing a polygon
+    Returns the total area of overlap between the bbox and all polygons
+    '''
+
+    #first, clip polygon to the bbox
+    clipped = path.clip_to_bbox(bbox, inside=True)
+    # now compute the area of the clipped polygon(s)
+    total_area = 0.0
+    for poly in clipped.to_polygons(closed_only=True):
+        if not isinstance(poly, np.ndarray):
+            raise ValueError("Expected polygon to be a numpy array")
+        
+        poly_area = 0.0
+        n = len(poly)
+        if n < 3:
+            continue
+        for i in range(n):
+            x0, y0 = poly[i]
+            x1, y1 = poly[(i + 1) % n]
+            poly_area += x0 * y1 - x1 * y0
+        poly_area = abs(poly_area) / 2.0
+        total_area += poly_area
+
+    return total_area
+
 def place_text(ax, text, loc, fontsize=24, bbox_opts={}):
     #attempt to copy the "best" location logic from matplotlib's legend
     badnesses = []
@@ -97,21 +152,23 @@ def place_text(ax, text, loc, fontsize=24, bbox_opts={}):
 
     if loc == 'best':
         for opt in options:
-            #print("Attempting option", len(badnesses))
             text_bbox = get_text_bbox(ax, text, opt, fontsize, bbox_opts)
-            text_bbox = text_bbox.expanded(1.2, 1.2)  #add padding
+            text_bbox = text_bbox.expanded(1.1, 1.1)  #add padding
             badness = 0
 
             for ol in other_lines:
-                badness += text_bbox.count_contains(ol.vertices) 
-                badness += ol.intersects_bbox(text_bbox)
+                area = path_overlap_area(text_bbox, ol)
+                badness += area
 
-            badness += text_bbox.count_contains(other_offsets)
+            c = text_bbox.count_contains(other_offsets)
+            badness += c
 
-            badness += text_bbox.count_overlaps(other_bboxes)
+            d = text_bbox.count_overlaps(other_bboxes)
+            badness += d * 20000 #weight bboxes more heavily
+                                 #these are things like Text or Legend boxes
+                                 #overlapping them is usually strongly undesirable
 
             badnesses.append(badness)
-            #print("\tBadness:", badness)
 
         best_index = np.argmin(badnesses)
         best_option = options[best_index]
