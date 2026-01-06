@@ -365,7 +365,9 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     if logy:
         ax_main.set_yscale('log')
 
-    if logy: # sometimes logarithmic y axes end up with perverse ranges
+    if logy and resolve_stack is None: # sometimes logarithmic y axes end up with perverse ranges
+                                       # NB the correction code only works if there is no stack being resolved
+                                       # so I just disable it in that case
         ylim = ax_main.get_ylim()
 
         if isinstance(Hs[0], hist.Hist):
@@ -380,6 +382,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                 min_trueY = Hmin
 
         if min_trueY / ylim[0] > config['ylim_tweak']['perversity_threshold']:
+            print("Warning: Adjusting log y-axis lower limit from %s to %s" % (ylim[0], min_trueY / config['ylim_tweak']['padding_factor']))
             ax_main.set_ylim(min_trueY/config['ylim_tweak']['padding_factor'])
 
     if variable[0].centerline is not None:
@@ -442,9 +445,9 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                 skip_labels = False
             )
 
-    add_text(ax_main, cut, extratext)
-
     draw_legend(ax_main, nolegend)
+
+    add_text(ax_main, cut, extratext)
 
     fig.tight_layout()
 
