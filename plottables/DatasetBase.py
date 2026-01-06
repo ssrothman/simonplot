@@ -167,7 +167,11 @@ class SingleDatasetBase(DatasetBase):
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
 
         minval = np.nanmin(values)
-        minval2 = np.nanmin(values[values > 0])
+        if len(values[values > 0]) == 0:
+            minval2 = np.nan
+        else:
+            minval2 = np.nanmin(values[values > 0])
+            
         maxval = np.nanmax(values)
 
         return (minval, minval2, maxval, values.dtype)

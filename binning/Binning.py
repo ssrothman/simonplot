@@ -131,6 +131,11 @@ class AutoBinning(BinningBase):
             ).build_axis(variables[0])
         else:
             #one bin for each integer value
+            if isinstance(maxval, np.bool_):
+                maxval = int(maxval)
+            if isinstance(minval, np.bool_):
+                minval = int(minval)
+                
             nbins = int(maxval - minval + 1)
 
             if transform is not None:
