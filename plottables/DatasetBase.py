@@ -176,6 +176,18 @@ class SingleDatasetBase(DatasetBase):
 
         return (minval, minval2, maxval, values.dtype)
 
+    def get_unique(self, var : VariableProtocol, cut : CutProtocol) -> np.ndarray:
+        needed_columns = list(set(var.columns + cut.columns))
+        
+        self.ensure_columns(needed_columns)
+
+        v = var.evaluate(self, cut) # pyright: ignore[reportArgumentType]
+        values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
+
+        unique_values = np.unique(values) 
+
+        return unique_values
+
     @property
     def is_stack(self) -> bool:
         return False
@@ -307,6 +319,14 @@ class DatasetStackBase(DatasetBase):
         yields = [d.estimate_yield(cut, weight) for d in self._datasets]
         ordered_indices = np.argsort(yields)
         self._datasets = [self._datasets[i] for i in ordered_indices]
+
+    def get_unique(self, var : VariableProtocol, cut : CutProtocol) -> np.ndarray:
+        unique_values = np.unique(
+            np.concatenate(
+                [d.get_unique(var, cut) for d in self._datasets]
+            )
+        )
+        return unique_values
 
     def get_range(self, var : VariableProtocol, cut : CutProtocol) -> Tuple[Any, Any, Any, np.dtype]:
 

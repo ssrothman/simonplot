@@ -417,17 +417,25 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         #no minor ticks
         if do_ratiopad:
             ax_pad.set_xticks(axis.edges) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
-            ax_pad.set_xticks([], minor=True) # pyright: ignore[reportPossiblyUnboundVariable]
-            ax_pad.set_xticklabels([''] + ticklabels_strs,  # pyright: ignore[reportPossiblyUnboundVariable]
-                            rotation=45, ha='right', 
-                            fontsize=14) 
+            ax_pad.set_xticks(axis.centers, minor=True) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
+            ax_pad.set_xticklabels(ticklabels_strs,  # pyright: ignore[reportPossiblyUnboundVariable]
+                            rotation=0, ha='center', 
+                            fontsize=14,
+                            minor=True) 
             ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
         else:
             ax_main.set_xticks(axis.edges) # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
-            ax_main.set_xticks([], minor=True)
-            ax_main.set_xticklabels([''] + ticklabels_strs, 
-                            rotation=45, ha='right',
-                            fontsize=14)
+            ax_main.set_xticks(axis.centers, minor=True) # pyright: ignore[reportAttributeAccessIssue]
+            ax_main.set_xticklabels(ticklabels_strs, 
+                            rotation=0, ha='center',
+                            #fontsize=14,
+                            minor=True)
+            #hide major tick labels
+            ax_main.set_xticklabels(['']*(len(ticklabels_strs)+1),
+                                    minor=False)
+            #hide minor ticks
+            ax_main.tick_params(axis='x', which='minor', length=0)
+
             ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.7)
     
     elif type(axis) is ArbitraryBinning:

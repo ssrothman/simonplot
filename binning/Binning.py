@@ -40,16 +40,11 @@ class AutoIntCategoryBinning(BinningBase):
                         datasets: List[Any], 
                         transform: Union[str, None]=None) -> hist.axis.AxesMixin:
         values = []
-        lens = []
         for var, cut, dataset in zip(variables, cuts, datasets):
-            needed_columns = list(set(var.columns + cut.columns))
-            dataset.ensure_columns(needed_columns)
-            v = var.evaluate(dataset, cut)
-            values.append(ak.flatten(v, axis=None)) 
-            lens.append(len(values[-1]))
+            values.append(dataset.get_unique(var, cut))
 
         all_values = ak.to_numpy(ak.flatten(values, axis=None)) 
-        unique_values = np.unique(all_values)
+        unique_values = np.unique(all_values) 
 
         return hist.axis.IntCategory(
             unique_values.tolist(),

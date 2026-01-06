@@ -151,6 +151,9 @@ class BaseDatasetProtocol(Protocol):
     def estimate_yield(self, cut : CutProtocol, weight : VariableProtocol) -> float:
         ...
     
+    def get_unique(self, var : VariableProtocol, cut : CutProtocol) -> np.ndarray:
+        ...
+
     def get_range(self, var : VariableProtocol, cut : CutProtocol) -> Tuple[Any, Any, Any, np.dtype]:
         ...
 
