@@ -34,6 +34,9 @@ class ValCovPairDataset(PrebinnedDatasetBase):
         
         self._isMC = isMC
 
+    def ensure_columns(self, columns: Sequence[str]):
+        pass
+
     @property
     def quantitytype(self):
         return "valcov"
@@ -115,6 +118,9 @@ class CovmatDataset(PrebinnedDatasetBase):
         result = self._binning.get_slice_cov2d(self.covmat, edges)
         return result
     
+    def ensure_columns(self, columns: Sequence[str]):
+        pass
+
     def _dummy_dset(self, data, binning) -> PrebinnedDatasetAccessProtocol:
         return CovmatDataset("", '', '', data, binning)
     

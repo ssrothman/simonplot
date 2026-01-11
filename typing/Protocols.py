@@ -6,7 +6,6 @@ import hist
 from enum import IntEnum
 from typing import overload
 
-from iadd import T
 from simonpy.AribtraryBinning import ArbitraryBinning
 
 @runtime_checkable
