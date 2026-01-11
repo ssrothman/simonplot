@@ -8,7 +8,7 @@ from simonplot.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, 
 
 from simonplot.util.common import setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
 from simonpy.text import clean_string, strip_units, strip_dollar_signs
 

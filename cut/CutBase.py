@@ -1,5 +1,5 @@
 from simonplot.typing.Protocols import  PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 from abc import ABC, abstractmethod
 

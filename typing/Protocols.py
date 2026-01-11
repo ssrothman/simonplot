@@ -6,7 +6,7 @@ import hist
 from enum import IntEnum
 from typing import overload
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 @runtime_checkable
 class HasKeyProtocol(Protocol):

@@ -1,7 +1,7 @@
 from simonplot.typing.Protocols import PrebinnedDatasetAccessProtocol
 from .DatasetBase import SingleDatasetBase
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 import numpy as np
 from typing import Sequence, Tuple
 

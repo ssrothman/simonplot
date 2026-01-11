@@ -2,7 +2,7 @@ from simonplot.config import config, lookup_axis_label
 
 from simonplot.typing.Protocols import BaseDatasetProtocol, PrebinnedDatasetProtocol, PrebinnedDatasetProtocol, UnbinnedDatasetProtocol, VariableProtocol, CutProtocol, PrebinnedOperationProtocol, BinningKind
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 import hist
 import awkward as ak

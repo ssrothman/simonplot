@@ -7,7 +7,7 @@ from simonplot.util.histplot import simon_histplot, simon_histplot_ratio, simon_
 
 from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 from typing import Any, List, Sequence, Tuple, Union, assert_never
 import hist

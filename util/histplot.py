@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import hist
 import numpy as np
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 def _call_errorbar(ax, x, y, xerr, yerr, **kwargs):
     

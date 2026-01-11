@@ -11,7 +11,7 @@ import hist
 import matplotlib.axes
 
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 from typing import List, Union, override
 

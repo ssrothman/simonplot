@@ -2,7 +2,7 @@ from simonplot.typing.Protocols import PrebinnedDatasetAccessProtocol
 from simonplot.config import lookup_axis_label
 
 from simonpy.text import strip_units
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 import numpy as np
 

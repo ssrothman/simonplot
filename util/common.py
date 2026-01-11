@@ -14,7 +14,7 @@ from .place_text import place_text
 from simonplot.cut import common_cuts, NoCut
 from simonplot.typing.Protocols import CutProtocol
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.text import strip_units
 
 from typing import Literal, Union, List, reveal_type

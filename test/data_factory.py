@@ -3,7 +3,7 @@ import hist
 import numpy as np
 
 from simonplot.plottables import ValCovPairDataset, CovmatDataset
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 
 def synthetic_data(Nevt, key) -> Tuple[np.ndarray, np.ndarray, ArbitraryBinning]:
     H = hist.Hist(

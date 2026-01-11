@@ -3,7 +3,7 @@ from simonplot.config import config, check_auto_logx, lookup_axis_label
 from simonplot.typing.Protocols import PrebinnedVariableProtocol, VariableProtocol, PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol
 from simonplot.util.common import make_radial_ax, setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
 
-from simonpy.AribtraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
 from simonpy.text import strip_units, strip_dollar_signs, find_match
 
