@@ -7,6 +7,7 @@ from simonplot.util.histplot import simon_histplot, simon_histplot_ratio, simon_
 
 from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
 
+from simonplot.variable.Variable import ConstantVariable
 from simonpy.AbitraryBinning import ArbitraryBinning
 
 from typing import Any, List, Sequence, Tuple, Union, assert_never
@@ -263,7 +264,10 @@ class SingleDatasetBase(DatasetBase):
             else:
                 raise RuntimeError("fill_hist: Cut must return prebinned (val, cov) pair for a prebinned dataset!")
             
-            wgt = weight.evaluate(self, NoCut()) * self._weight
+            if not isinstance(weight, ConstantVariable):
+                raise RuntimeError("fill_hist: For prebinned datasets, only ConstantVariable is supported as weight variable!")
+            
+            wgt = weight._value * self._weight
 
             val = val * wgt
             cov = cov * np.square(wgt)
