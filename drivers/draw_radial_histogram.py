@@ -1,7 +1,7 @@
 from simonplot.config import config, check_auto_logx, lookup_axis_label
 
 from simonplot.typing.Protocols import PrebinnedVariableProtocol, VariableProtocol, PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol
-from simonplot.util.common import make_radial_ax, setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
+from simonplot.util.common import make_radial_ax, prebinned_ylabel, setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
 
 from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import Normalize, LogNorm, SymLogNorm
 
-from typing import List, Union
+from typing import List, Union, assert_never
 from enum import IntEnum
 
 _ALLOWED_ANGULAR_NAMES = ['phi', 'angle', 'theta', 'c']
@@ -22,6 +22,14 @@ class _RANGES(IntEnum):
     FULL = 0
     HALF = 1
     QUARTER = 2
+
+def _pcolormesh(ax, edges, angular_name, radial_name, hist2d, cmap, norm):
+    return ax.pcolormesh(
+        edges[angular_name], edges[radial_name], hist2d,
+        shading='auto', rasterized=True,
+        cmap=cmap, norm=norm, 
+    )
+
 
 def draw_radial_histogram(
                    variable : PrebinnedVariableProtocol,
@@ -42,16 +50,16 @@ def draw_radial_histogram(
     if not axis.single_block:
         raise ValueError("draw_radial_histogram only supports single-block (ie rectangular) binning")
 
-    radial_name = find_match(axis.axis_names, _ALLOWED_ANGULAR_NAMES, True)
-    if radial_name is None:
+    angular_name = find_match(axis.axis_names, _ALLOWED_ANGULAR_NAMES, True)
+    if angular_name is None:
         raise ValueError("Could not identify angular axis name from %s (options are %s)" % (axis.axis_names, _ALLOWED_ANGULAR_NAMES))
     
-    angular_name = find_match(axis.axis_names, _ALLOWED_RADIAL_NAMES, True)
-    if angular_name is None:
+    radial_name = find_match(axis.axis_names, _ALLOWED_RADIAL_NAMES, True)
+    if radial_name is None:
         raise ValueError("Could not identify radial axis name from %s (options are %s)" % (axis.axis_names, _ALLOWED_RADIAL_NAMES))
     
     edges = axis.edges
-    phirange = np.max(edges[radial_name]) - np.min(edges[radial_name])
+    phirange = np.max(edges[angular_name]) - np.min(edges[angular_name])
     if np.isclose(phirange, 2*np.pi):
         range_type = _RANGES.FULL
     elif np.isclose(phirange, np.pi):
@@ -63,8 +71,16 @@ def draw_radial_histogram(
     
     #get values to plot
     hist2d = variable.evaluate(dataset, cut)
+    if isinstance(hist2d, tuple):
+        hist2d = hist2d[0]
+    
     if not isinstance(hist2d, np.ndarray):
         raise ValueError("Variable did not return a numpy ndarray! Instead got %s" % type(hist2d))
+    
+    extents = [len(edges[name])-1 for name in axis.axis_names]
+    hist2d = hist2d.reshape(extents)
+    print(hist2d.shape)
+
     if hist2d.ndim != 2:
         raise ValueError("Variable did not return a 2D histogram! Instead shape was %s" % hist2d.shape)
 
@@ -82,26 +98,59 @@ def draw_radial_histogram(
     else:
         norm = Normalize()
 
-    artist = ax.pcolormesh(
-        edges[radial_name], edges[angular_name], hist2d,
-        shading='auto', rasterized=True,
-        cmap=cmap, norm=norm, 
+    artist = _pcolormesh(
+        ax, edges, angular_name, radial_name, hist2d, cmap, norm
     )
+
+    if range_type == _RANGES.FULL:
+        pass
+    elif range_type == _RANGES.HALF:
+        edges2 = edges.copy()
+        edges2[angular_name] = -edges[angular_name]
+        _pcolormesh(
+            ax, edges2, angular_name, radial_name, hist2d, cmap, norm
+        )
+    elif range_type == _RANGES.QUARTER:
+        edges2 = edges.copy()
+        edges2[angular_name] = np.pi - edges[angular_name]
+        _pcolormesh(
+            ax, edges2, angular_name, radial_name, hist2d, cmap, norm
+        )
+        edges3 = edges.copy()
+        edges3[angular_name] = -edges[angular_name]
+        _pcolormesh(
+            ax, edges3, angular_name, radial_name, hist2d, cmap, norm
+        )
+        edges4 = edges.copy()
+        edges4[angular_name] = np.pi + edges[angular_name]
+        _pcolormesh(
+            ax, edges4, angular_name, radial_name, hist2d, cmap, norm
+        )
+    else:
+        assert_never(range_type)
 
     cbar = fig.colorbar(artist, ax=ax, pad=0.1)
 
-    if variable.normalized_by_err:
-        cbarlabel = '$\\frac{N}{\\sigma_N}$'
-    elif variable.hasjacobian:
-        radial_label = strip_dollar_signs(strip_units(lookup_axis_label(radial_name)))
-        angular_label = strip_dollar_signs(strip_units(lookup_axis_label(angular_name)))
-        cbarlabel = '$\\frac{dN}{%sd%sd%s}$'% (radial_label, radial_label, angular_label)
-    else:
-        cbarlabel = 'Bin counts'
-
+    cbarlabel = prebinned_ylabel(variable, axis)
     cbar.set_label(cbarlabel)
 
-    add_text(ax, cut, extratext)
+    placed_text = add_text(
+        ax, cut, extratext,
+        loc=(0.05, 0.95, 'top', 'left')
+    )
+    desired_ticks = [0, 45, 90, 135, 180, 225, 270, 315]
+    if '\n' in placed_text:
+        desired_ticklabels = ['0', '45', '', '', '180', '225', '270', '315']
+    else:
+        desired_ticklabels = ['0', '45', '', '135', '180', '225', '270', '315']
+    
+    for i in range(len(desired_ticks)):
+        #add degrees symbol to labels
+        if desired_ticklabels[i] != '':
+            desired_ticklabels[i] = desired_ticklabels[i] + '°'
+
+    ax.set_xticks(np.radians(desired_ticks), labels=desired_ticklabels,)
+    ax.tick_params(axis='x', which='major', pad=15)
 
     fig.tight_layout()
 
@@ -111,10 +160,9 @@ def draw_radial_histogram(
         else:
             output_path = os.path.join(output_folder, output_prefix)
 
+        output_path += '_VAR-%s' % variable.key
         output_path += '_CUT-%s' % cut.key
         output_path += '_DSET-%s' % dataset.key
-
-        output_path += '_TO-DO'
         
         if logc:
             output_path += '_LOGC'
