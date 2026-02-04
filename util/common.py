@@ -12,12 +12,12 @@ from simonplot.config import config, lookup_axis_label
 from .place_text import place_text
 
 from simonplot.cut import common_cuts, NoCut
-from simonplot.typing.Protocols import CutProtocol
+from simonplot.typing.Protocols import CutProtocol, PrebinnedVariableProtocol
 
 from simonpy.AbitraryBinning import ArbitraryBinning
-from simonpy.text import strip_units
+from simonpy.text import clean_string, strip_units
 
-from typing import Literal, Union, List, reveal_type
+from typing import Literal, Tuple, Union, List, reveal_type
 
 hep.style.use(hep.style.CMS)
 matplotlib.rcParams['savefig.dpi'] = 300
@@ -298,7 +298,10 @@ def draw_legend(ax: matplotlib.axes.Axes, nolegend: bool, scale: float=1.0, loc:
                     draw_legend(ax, nolegend, scale=scale+1, loc=loc)
                     break
 
-def add_text(ax : matplotlib.axes.Axes, cut: Union[CutProtocol, List[CutProtocol]], extratext: Union[str, None]=None):
+def add_text(ax : matplotlib.axes.Axes, 
+             cut: Union[CutProtocol, List[CutProtocol]], 
+             extratext: Union[str, None]=None,
+             loc : str | int | Tuple[float, float, str, str]='best'):
     ccut = common_cuts(cut)
     if not isinstance(cut, NoCut):
         thetext = ccut.label
@@ -311,12 +314,13 @@ def add_text(ax : matplotlib.axes.Axes, cut: Union[CutProtocol, List[CutProtocol
     thetext = thetext.strip()
 
     if thetext != '':
-        place_text(ax, thetext, loc='best', fontsize=24, bbox_opts={
+        place_text(ax, thetext, loc=loc, fontsize=24, bbox_opts={
             'boxstyle': 'round,pad=0.3',
             'facecolor': 'white',
             'edgecolor': 'black',
             'alpha': 0.8
         })
+    return thetext
 
 def get_artist_color(artist : Union[matplotlib.container.ErrorbarContainer, matplotlib.patches.Patch, matplotlib.lines.Line2D]):
     if isinstance(artist, matplotlib.patches.Patch):
@@ -331,3 +335,33 @@ def label_from_binning(binning : ArbitraryBinning) -> str:
         return lookup_axis_label(binning.axis_names[0])
     else:
         return '@'.join([strip_units(lookup_axis_label(ax)) for ax in binning.axis_names]) + " bin index"
+    
+
+def prebinned_ylabel(var : PrebinnedVariableProtocol, binning : ArbitraryBinning) -> str:
+    if var.normalized_by_err:
+        ylabel = '$\\frac{N}{\\sigma_N}$'
+    elif var.hasjacobian:
+        denom = ''
+        axes = var.jac_details['wrt']
+        if len(axes) == 0:
+            axes = binning.axis_names
+        for ax in axes:
+            l = clean_string(lookup_axis_label(ax))
+            if ax in var.jac_details['radial_coords']:
+                denom += l + 'd(' + l + ')'
+            else:
+                denom += 'd(' + l + ')'
+        ylabel = '$\\frac{dN}{%s}$' % denom
+    else:
+        ylabel = 'Bin counts'
+
+    if var.normalized_blocks:
+        normvars = var.normalized_blocks
+        if len(normvars) == 1:
+            binsid = strip_units(lookup_axis_label(normvars[0]))
+        else:
+            binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(vv)) for vv in normvars])
+
+        ylabel += ' (normalized per %s bin)' % binsid
+
+    return ylabel

@@ -1,7 +1,7 @@
 from bleach import clean
 from simonplot.config.lookuputil import lookup_axis_label
 from simonplot.typing.Protocols import HistplotMode, PrebinnedVariableProtocol
-from simonplot.util.common import add_axis_label
+from simonplot.util.common import add_axis_label, prebinned_ylabel
 from simonplot.config import config, check_auto_logx
 
 from simonplot.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, VariableProtocol, BaseDatasetProtocol, BaseBinningProtocol, AutoBinningProtocol, DefaultBinningProtocol, PrebinnedBinningProtocol, BasicBinningProtocol
@@ -331,29 +331,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             raise RuntimeError("Prebinned Binning requires PrebinnedVariable!")
         
         v = variable[0]
-        if v.normalized_by_err:
-            ylabel = '$\\frac{N}{\\sigma_N}$'
-        elif v.hasjacobian:
-            denom = ''
-            for ax in axis.axis_names:
-                l = clean_string(lookup_axis_label(ax))
-                if ax in v.jac_details['radial_coords']:
-                    denom += l + 'd(' + l + ')'
-                else:
-                    denom += 'd(' + l + ')'
-            ylabel = '$\\frac{dN}{%s}$' % denom
-        else:
-            ylabel = 'Bin counts'
-
-        if v.normalized_blocks:
-            normvars = v.normalized_blocks
-            if len(normvars) == 1:
-                binsid = strip_units(lookup_axis_label(normvars[0]))
-            else:
-                binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(vv)) for vv in normvars])
-
-            ylabel += ' (normalized per %s bin)' % binsid
-
+        ylabel = prebinned_ylabel(v, axis)
+        
     else:
         ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
 
