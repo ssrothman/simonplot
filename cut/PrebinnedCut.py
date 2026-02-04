@@ -1,6 +1,7 @@
 from simonplot.typing.Protocols import PrebinnedDatasetAccessProtocol
 from simonplot.config import lookup_axis_label
 
+from simonpy.sanitization import maybe_valcov_to_definitely_valcov
 from simonpy.text import strip_units
 from simonpy.AbitraryBinning import ArbitraryBinning
 
@@ -65,8 +66,12 @@ class ProjectionOperation(PrebinnedOperationBase):
         return result
 
 class SliceOperation(PrebinnedOperationBase):
-    def __init__(self, edges : dict[str, Sequence]):
+    def __init__(self, 
+                 edges : dict[str, Sequence],
+                 clipemptyflow : Sequence[str]):
+        
         self._edges = edges
+        self._clipemptyflow = clipemptyflow
 
     @property
     def key(self):
@@ -75,7 +80,13 @@ class SliceOperation(PrebinnedOperationBase):
             slicestr+='%s-%0.3gto%0.3g_' % (name, edges[0], edges[1])
         if slicestr[-1] == '_':
             slicestr = slicestr[:-1]
-        return "SLICE(%s)" % slicestr
+
+        flowstr = '-'.join(self._clipemptyflow)
+
+        if flowstr == '':
+            return "SLICE(%s)" % slicestr
+        else:
+            return "SLICE(%s)-CLIPFLOW(%s)" % (slicestr, flowstr)
     
     @property
     def _auto_label(self):
@@ -99,15 +110,55 @@ class SliceOperation(PrebinnedOperationBase):
     
     def evaluate(self, dataset):
         dataset = self.ensure_valid_dataset(dataset)   
-        return dataset.slice(self._edges)
+        sliced = dataset.slice(self._edges)
+        sliced_vals, sliced_cov, _, _ = maybe_valcov_to_definitely_valcov(sliced)
+
+        sliced_binning = dataset.binning.get_sliced_binning(self._edges)
+        lower_edges = sliced_binning.lower_edges()
+        upper_edges = sliced_binning.upper_edges()
+
+        if sliced_vals is not None:
+            flow = np.zeros_like(sliced_vals, dtype=bool)
+        elif sliced_cov is not None:
+            flow = np.zeros(sliced_cov.shape[0], dtype=bool)
+        else:
+            raise ValueError("Sliced dataset has neither values nor covariance!")
+                
+        for ax in self._clipemptyflow:
+            flow |= lower_edges[ax].ravel() == -np.inf
+            flow |= upper_edges[ax].ravel() == np.inf
+
+        if sliced_vals is not None and sliced_vals[flow].sum() > 0:
+            raise ValueError(f"Sliced dataset has non-zero entries in flow bins along axes {self._clipemptyflow}, but clipemptyflow was requested. Please adjust slice edges or disable clipemptyflow.")
+        if sliced_cov is not None and np.sum(sliced_cov[flow, :]) + np.sum(sliced_cov[:, flow]) > 0:
+            raise ValueError(f"Sliced dataset has non-zero covariance entries in flow bins along axes {self._clipemptyflow}, but clipemptyflow was requested. Please adjust slice edges or disable clipemptyflow.")
+        
+        if sliced_vals is not None:
+            sliced_vals = sliced_vals[~flow]
+        if sliced_cov is not None:
+            sliced_cov = sliced_cov[~flow, :][:, ~flow]
+
+        if sliced_vals is not None and sliced_cov is not None:
+            return (sliced_vals, sliced_cov)
+        elif sliced_vals is not None:
+            return sliced_vals
+        elif sliced_cov is not None:
+            return sliced_cov
+        else:
+            raise ValueError("Sliced dataset has neither values nor covariance after clipping flow bins!")
     
     def _compute_resulting_binning(self, binning : ArbitraryBinning) -> ArbitraryBinning:
-        return binning.get_sliced_binning(self._edges)
+        slicedbinning = binning.get_sliced_binning(self._edges)
+        clippedbinning = slicedbinning.remove_flow_bins(self._clipemptyflow)
+        return clippedbinning
 
 class ProjectAndSliceOperation(PrebinnedOperationBase):
-    def __init__(self, axes : Sequence[str], edges: dict[str, Sequence]):
+    def __init__(self, 
+                 axes : Sequence[str], 
+                 edges: dict[str, Sequence],
+                 clipemptyflow : Sequence[str]):
         self._projection = ProjectionOperation(axes)
-        self._slice = SliceOperation(edges)
+        self._slice = SliceOperation(edges, clipemptyflow)
 
     @property
     def key(self):
