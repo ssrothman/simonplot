@@ -58,17 +58,21 @@ class BasicPrebinnedVariable(VariableBase):
     @property
     def jac_details(self) -> dict:
         return {
+            'wrt' : [],
             'radial_coords' : [],
             'clip_negativeinf' : {},
             'clip_positiveinf' : {}
         }
 
 class WithJacobian(VariableBase):
-    def __init__(self, variable : PrebinnedVariableProtocol, 
+    def __init__(self, 
+                 variable : PrebinnedVariableProtocol, 
+                 wrt : Sequence[str],
                  radial_coords : Sequence[str],
                  clip_negativeinf : dict[str, float] = {},
                  clip_positiveinf : dict[str, float] = {}):
         self._var = variable
+        self._wrt = wrt
         self._radial_coords = radial_coords
         self._clip_negativeinf = clip_negativeinf
         self._clip_positiveinf = clip_positiveinf
@@ -112,15 +116,22 @@ class WithJacobian(VariableBase):
                 edges = upper_edges[key]
                 upper_edges[key] = np.where(edges == np.inf, self._clip_positiveinf[key], edges)
 
+        for key in self._wrt:
+            if np.any(~np.isfinite(lower_edges[key])):
+                raise ValueError(f"Lower edges for axis {key} contain non-finite values even after clipping!")
+        for key in self._wrt:
+            if np.any(~np.isfinite(upper_edges[key])):
+                raise ValueError(f"Upper edges for axis {key} contain non-finite values even after clipping!")
+
         widths = {}
-        for key in binning.axis_names:
+        for key in self._wrt:
             if key in self._radial_coords:
                 widths[key] = np.square(upper_edges[key]) - np.square(lower_edges[key])
             else:
                 widths[key] = upper_edges[key] - lower_edges[key]
 
         jacobian = np.ones(shape = (thelen,), dtype= thedtype)
-        for key in binning.axis_names:
+        for key in self._wrt:
             jacobian *= widths[key].ravel()
 
         jacobian[jacobian == 0] = 1.0 #avoid division by zero
@@ -171,6 +182,7 @@ class WithJacobian(VariableBase):
     @property
     def jac_details(self) -> dict:
         return {
+            'wrt' : self._wrt,
             'radial_coords' : self._radial_coords,
             'clip_negativeinf' : self._clip_negativeinf,
             'clip_positiveinf' : self._clip_positiveinf
@@ -247,7 +259,7 @@ class NormalizePerBlock(VariableBase):
 
     @property
     def jac_details(self) -> dict:
-        return self._var.jac_details
+        return self._var.jac_details        
 
 class CorrelationFromCovariance(VariableBase):
     def __init__(self, variable : PrebinnedVariableProtocol):
