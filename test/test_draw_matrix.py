@@ -16,12 +16,13 @@ cut2 = ProjectionOperation(['pt'])
 cut3 = ProjectionOperation(['r'])
 cut4 = ProjectionOperation(['pt', 'phi'])
 cut5 = ProjectionOperation(['r', 'phi'])
-cut6 = SliceOperation({'pt' : (dset.binning.edges['pt'][2], dset.binning.edges['pt'][5])})
+cut6 = SliceOperation({'pt' : (dset.binning.edges['pt'][2], dset.binning.edges['pt'][5])}, clipemptyflow=[])
 cut7 = SliceOperation({'r' : (dset.binning.edges['r'][0], dset.binning.edges['r'][1]),
-                       'phi' : (dset.binning.edges['phi'][3], dset.binning.edges['phi'][7])})
+                       'phi' : (dset.binning.edges['phi'][3], dset.binning.edges['phi'][7])}, clipemptyflow=[])
 cut8 = ProjectAndSliceOperation(
     axes = ['r'],
-    edges = {'pt' : (dset.binning.edges['pt'][1], dset.binning.edges['pt'][2])}
+    edges = {'pt' : (dset.binning.edges['pt'][1], dset.binning.edges['pt'][2])},
+    clipemptyflow = []
 )
 weight = ConstantVariable(1.0)
 
@@ -35,10 +36,10 @@ for cut in []:
         output_folder = 'unittest/draw_matrix/matrix'
     )
 
-var2 = WithJacobian(var1, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
+var2 = WithJacobian(var1, wrt=['r', 'phi'], radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
 var3 = NormalizePerBlock(var1, axes=['pt'])
 var4 = NormalizePerBlock(var1, axes=['pt', 'r'])
-var5 = WithJacobian(var3, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
+var5 = WithJacobian(var3, wrt=['r', 'phi'], radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
 var6 = CorrelationFromCovariance(var1)
 
 #for var in [var2, var3, var4, var5, var6]:

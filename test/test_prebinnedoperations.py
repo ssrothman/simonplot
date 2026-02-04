@@ -13,12 +13,13 @@ def check_operations(dset, target_vals, target_cov, assertfun):
     cut2 = ProjectionOperation(['pt'])
     cut3 = ProjectionOperation(['r'])
     cut4 = ProjectionOperation(['pt', 'phi'])
-    cut5 = SliceOperation({'pt' : (dset.binning.edges['pt'][2], dset.binning.edges['pt'][5])})
+    cut5 = SliceOperation({'pt' : (dset.binning.edges['pt'][2], dset.binning.edges['pt'][5])}, clipemptyflow=[])
     cut6 = SliceOperation({'r' : (dset.binning.edges['r'][0], dset.binning.edges['r'][1]),
-                        'phi' : (dset.binning.edges['phi'][3], dset.binning.edges['phi'][7])})
+                        'phi' : (dset.binning.edges['phi'][3], dset.binning.edges['phi'][7])}, clipemptyflow=[])
     cut7 = ProjectAndSliceOperation(
         axes = ['r'],
-        edges = {'pt' : (dset.binning.edges['pt'][1], dset.binning.edges['pt'][2])}
+        edges = {'pt' : (dset.binning.edges['pt'][1], dset.binning.edges['pt'][2])},    
+        clipemptyflow = []
     )
 
     result1 = var1.evaluate(dset, cut1)

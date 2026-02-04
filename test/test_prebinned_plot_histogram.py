@@ -26,12 +26,13 @@ cut1 = NoopOperation()
 cut2 = ProjectionOperation(['pt'])
 cut3 = ProjectionOperation(['r'])
 cut4 = ProjectionOperation(['pt', 'phi'])
-cut5 = SliceOperation({'pt' : (dset_MC1.binning.edges['pt'][2], dset_MC1.binning.edges['pt'][5])})
+cut5 = SliceOperation({'pt' : (dset_MC1.binning.edges['pt'][2], dset_MC1.binning.edges['pt'][5])}, clipemptyflow=[])
 cut6 = SliceOperation({'r' : (dset_MC1.binning.edges['r'][0], dset_MC1.binning.edges['r'][1]),
-                       'phi' : (dset_MC1.binning.edges['phi'][3], dset_MC1.binning.edges['phi'][7])})
+                       'phi' : (dset_MC1.binning.edges['phi'][3], dset_MC1.binning.edges['phi'][7])}, clipemptyflow=[])
 cut7 = ProjectAndSliceOperation(
     axes = ['r'],
-    edges = {'pt' : (dset_MC1.binning.edges['pt'][1], dset_MC1.binning.edges['pt'][2])}
+    edges = {'pt' : (dset_MC1.binning.edges['pt'][1], dset_MC1.binning.edges['pt'][2])},
+    clipemptyflow = []
 )
 cut8 = ProjectionOperation(['r', 'phi'])
 
@@ -62,10 +63,10 @@ for cut in [cut2, cut3, cut4, cut5, cut6, cut7, cut8]:
      )
 
 
-var2 = WithJacobian(var1, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
+var2 = WithJacobian(var1, wrt=['r', 'phi'], radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
 var3 = NormalizePerBlock(var1, axes=['pt'])
 var4 = NormalizePerBlock(var1, axes=['pt', 'r'])
-var5 = WithJacobian(var3, radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
+var5 = WithJacobian(var3, wrt=['r', 'phi'], radial_coords=['r'], clip_negativeinf={'pt' : 0.0}, clip_positiveinf={'pt' : 10000.0})
 
 for var in [var1, var2, var3, var4, var5]:
 #for var in [var4]:
