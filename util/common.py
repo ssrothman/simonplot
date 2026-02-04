@@ -165,8 +165,8 @@ def make_fancy_prebinned_labels(ax : matplotlib.axes.Axes,
     #compute tick positions and labels
     major_tick_centers = (major_ticks[:-1] + major_ticks[1:]) / 2
     major_tick_labels = []
-    axname = lookup_axis_label(axis.axis_names[0])
-    axname = strip_units(axname)
+    axname = '$' + clean_string(lookup_axis_label(axis.axis_names[0])) + '$'
+
     for block in blocks:
         low = block['edges'][axis.axis_names[0]][0]
         high = block['edges'][axis.axis_names[0]][1]

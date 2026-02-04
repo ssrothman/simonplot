@@ -7,7 +7,7 @@ from matplotlib.colors import Normalize, SymLogNorm, LogNorm
 from simonplot.config.lookuputil import lookup_axis_label
 from simonplot.variable.PrebinnedVariable import _ExtractCovarianceMatrix
 from simonplot.typing.Protocols import PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol, PrebinnedVariableProtocol, VariableProtocol
-from simonplot.util.common import add_text, label_from_binning, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend
+from simonplot.util.common import add_axis_label, add_text, label_from_binning, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend
 from simonpy.text import strip_units
 
 import numpy as np
@@ -37,10 +37,17 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
 
     #automatically determine if values are (conceptually) symmetric about zero
     if sym is None:
-        if np.min(mat) < 0 and np.max(mat) > 0:
+        if 'CorrelationFromCovariance' in variable.key:
             sym = True
-        else:
+        elif np.all(mat >= 0):
             sym = False
+        else:
+            test = np.min(mat) / np.max(mat)
+            if test < -0.5 and test > -2:
+                sym = True
+            else:
+                sym = False
+        
 
     if sym:
         cmap = 'coolwarm'
@@ -58,7 +65,7 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
                 vmax = extreme,
             )
     else:
-        cmap = 'viridis'
+        cmap = 'plasma'
         if logc:
             normobj = LogNorm()
         else:
@@ -99,8 +106,8 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
         artist = ax.pcolormesh(mat, cmap=cmap, norm=normobj, rasterized=True)
 
     the_xlabel = label_from_binning(axis)
-    ax.set_xlabel(the_xlabel)
-    ax.set_ylabel(the_xlabel)
+    add_axis_label(ax, the_xlabel, which='x')
+    add_axis_label(ax, the_xlabel, which='y')
 
     cbar = fig.colorbar(artist, ax=ax)
     
