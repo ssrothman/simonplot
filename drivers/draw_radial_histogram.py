@@ -37,7 +37,8 @@ def draw_radial_histogram(
                    dataset: PrebinnedDatasetProtocol,
                    binning : PrebinnedBinningProtocol,
                    extratext : Union[str, None] = None,
-                   logc : bool = True,
+                   logc : bool | None = None,
+                   sym : bool | None = None,
                    output_folder: Union[str, None] = None,
                    output_prefix: Union[str, None] = None):
     
@@ -79,10 +80,35 @@ def draw_radial_histogram(
     
     extents = [len(edges[name])-1 for name in axis.axis_names]
     hist2d = hist2d.reshape(extents)
-    print(hist2d.shape)
 
     if hist2d.ndim != 2:
         raise ValueError("Variable did not return a 2D histogram! Instead shape was %s" % hist2d.shape)
+    
+    # attempt to automatically determine logc and sym if not specified
+    if logc is None:
+        # automatically detect if values are log-like
+        pct01 = np.percentile(hist2d, 01.0)
+        pct50 = np.percentile(hist2d, 50.0)
+        pct99 = np.percentile(hist2d, 99.0)
+        if pct01 <= 0:
+            logc = False
+        else:
+            test = (pct99 - pct50) / (pct50 - pct01)
+            if test > 10:
+                logc = True
+            else:
+                logc = False
+
+    if sym is None:
+        if logc:
+            sym = False
+        elif variable.centerline is not None:
+            sym = True
+        else:
+            sym = False
+
+    if sym and variable.centerline is None:
+        variable.override_centerline(1.0)
 
     #setup canvas
     fig = setup_canvas()
@@ -92,11 +118,27 @@ def draw_radial_histogram(
     else:
         add_cms_legend(ax, True, lumi=dataset.lumi)
 
-    cmap = 'viridis'
-    if logc:
-        norm = LogNorm()
+    if sym:
+        cmap = 'coolwarm'
+        diff = hist2d - variable.centerline
+        maxabs = np.max(np.abs(diff))
+        if logc:
+            norm = SymLogNorm(
+                linthresh=maxabs/1e3, 
+                vmin=variable.centerline-maxabs, 
+                vmax=variable.centerline+maxabs
+            )
+        else:
+            norm = Normalize(
+                vmin=variable.centerline-maxabs,
+                vmax=variable.centerline+maxabs
+            )
     else:
-        norm = Normalize()
+        cmap = 'plasma'
+        if logc:
+            norm = LogNorm()
+        else:
+            norm = Normalize()
 
     artist = _pcolormesh(
         ax, edges, angular_name, radial_name, hist2d, cmap, norm
@@ -138,10 +180,12 @@ def draw_radial_histogram(
         ax, cut, extratext,
         loc=(0.05, 0.95, 'top', 'left')
     )
+    
     desired_ticks = [0, 45, 90, 135, 180, 225, 270, 315]
-    if '\n' in placed_text:
+    # the 90 label always clashes with the CMS text
+    if '\n' in placed_text: # if text is multiple lines, it will clash with the 135 tick label
         desired_ticklabels = ['0', '45', '', '', '180', '225', '270', '315']
-    else:
+    else: 
         desired_ticklabels = ['0', '45', '', '135', '180', '225', '270', '315']
     
     for i in range(len(desired_ticks)):
@@ -150,6 +194,7 @@ def draw_radial_histogram(
             desired_ticklabels[i] = desired_ticklabels[i] + '°'
 
     ax.set_xticks(np.radians(desired_ticks), labels=desired_ticklabels,)
+    #add padding so they don't clash with the actual plot
     ax.tick_params(axis='x', which='major', pad=15)
 
     fig.tight_layout()

@@ -66,6 +66,9 @@ class VariableProtocol(VariableLikeProtocol, Protocol):
     def centerline(self) -> None | float | Sequence[float]:
         ...
 
+    def override_centerline(self, centerline : None | float | Sequence[float]) -> None:
+        ...
+
 #specialize prebinned template
 @runtime_checkable
 class PrebinnedVariableProtocol(VariableLikeProtocol, Protocol):
@@ -90,6 +93,9 @@ class PrebinnedVariableProtocol(VariableLikeProtocol, Protocol):
         
     @property
     def centerline(self) -> None | float | Sequence[float]:
+        ...
+
+    def override_centerline(self, centerline : None | float | Sequence[float]) -> None:
         ...
 
 class BinningKind(IntEnum):

@@ -28,9 +28,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                    extratext : Union[str, None] = None,
                    density: bool = False,
                    logx: Union[bool, None] = None,
-                   logy: bool = True,
+                   logy: bool | None = True,
                    pulls : bool = False,
                    no_ratiopad : bool = False,
+                   no_lumi_normalization : bool = False,
                    output_folder: Union[str, None] = None,
                    output_prefix: Union[str, None] = None):
 
@@ -175,8 +176,12 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         which_data = len(variable) - 1
         which_ref = which_data
 
-        for i in range(len(variable)):
-            dataset[i].compute_weight(dataset[which_data].lumi)
+        if not no_lumi_normalization:
+            for i in range(len(variable)):  
+                dataset[i].compute_weight(dataset[which_data].lumi)
+        else:
+            for i in range(len(variable)):
+                dataset[i]._weight = 1.0 # type: ignore
     else:
         isdata = False
         which_ref = 0
@@ -184,7 +189,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
         for i in range(len(variable)):
             # scale to arbitrary luminosity of 1000fb^{-1}
-            dataset[i].compute_weight(1000)
+            if not no_lumi_normalization:
+                dataset[i].compute_weight(1000)
+            else:
+                dataset[i]._weight = 1.0 # type: ignore
 
     fig = setup_canvas()
 
@@ -302,6 +310,11 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
                 #find common initial pieces of all dataset labels
                 common_prefix = os.path.commonprefix(alllabels)
+                #find the last "word" boundary in the common prefix
+                last_space = common_prefix.rfind(' ')
+                if last_space != -1:
+                    common_prefix = common_prefix[:last_space+1]
+
                 print(denomlabel)
                 denomlabel = denomlabel[len(common_prefix):]
                 print("truncated to", denomlabel)
@@ -339,6 +352,22 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     ylabel += extra_ylabel
     add_axis_label(ax_main, ylabel, which='y')
 
+    if logy is None:
+        if isinstance(Hs[0], hist.Hist):
+            Hvals = np.concatenate([H.values(flow=True) for H in Hs])
+        else:
+            Hvals = np.concatenate([H[0] for H in Hs])
+
+        pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
+        pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
+        pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
+        
+        test = (pct99 - pct50) / (pct50 - pct01)
+        if test > 10:
+            logy = True
+        else:
+            logy = False
+
     if logx:
         ax_main.set_xscale('log')
     if logy:
@@ -347,6 +376,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     if logy and resolve_stack is None: # sometimes logarithmic y axes end up with perverse ranges
                                        # NB the correction code only works if there is no stack being resolved
                                        # so I just disable it in that case
+
         ylim = ax_main.get_ylim()
 
         if isinstance(Hs[0], hist.Hist):
@@ -366,11 +396,16 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
     if variable[0].centerline is not None:
         cls = variable[0].centerline
+        if variable[0].prebinned:
+            thefunc = ax_main.axhline
+        else:
+            thefunc = ax_main.axvline
+
         if isinstance(cls, Sequence):
             for cl in cls:
-                ax_main.axvline(cl, color='k', linestyle='dashed')
+                thefunc(cl, color='k', linestyle='dashed')
         else:
-            ax_main.axvline(cls, color='k', linestyle='dashed')
+            thefunc(cls, color='k', linestyle='dashed')
 
     if do_ratiopad:
         if pulls:

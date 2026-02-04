@@ -357,11 +357,22 @@ def prebinned_ylabel(var : PrebinnedVariableProtocol, binning : ArbitraryBinning
 
     if var.normalized_blocks:
         normvars = var.normalized_blocks
-        if len(normvars) == 1:
-            binsid = strip_units(lookup_axis_label(normvars[0]))
-        else:
-            binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(vv)) for vv in normvars])
 
-        ylabel += ' (normalized per %s bin)' % binsid
+        normvars_for_extra = []
+        for normvar in normvars:
+            if normvar not in var.jac_details['wrt']:
+                normvars_for_extra.append(normvar)
+            else:
+                l = clean_string(lookup_axis_label(normvar))
+                ylabel = ylabel.replace(l + 'd(%s)' % l, '')
+                ylabel = ylabel.replace('d(%s)'%l, '')
+
+        if normvars_for_extra:
+            if len(normvars_for_extra) == 1:
+                binsid = strip_units(lookup_axis_label(normvars_for_extra[0]))
+            else:
+                binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(vv)) for vv in normvars_for_extra])
+
+            ylabel += ' (normalized per %s bin)' % binsid
 
     return ylabel

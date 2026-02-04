@@ -77,6 +77,9 @@ class WithJacobian(VariableBase):
         self._clip_negativeinf = clip_negativeinf
         self._clip_positiveinf = clip_positiveinf
 
+        if self._var.hasjacobian:
+            raise ValueError("WithJacobian should be applied only once!")
+
     @property
     def _natural_centerline(self):
         return None
@@ -188,6 +191,91 @@ class WithJacobian(VariableBase):
             'clip_positiveinf' : self._clip_positiveinf
         }
     
+'''
+Nearly identical to NormalizePerBlock, but normalizes to mean value instead of to integral
+'''
+class DivideOutProfile(VariableBase):
+    def __init__(self, variable : PrebinnedVariableProtocol, axes : List[str]):
+        self._var = variable
+        self._axes = axes
+
+        if self._var.normalized_by_err:
+            raise ValueError("DivideOutProfile should be applied BEFORE normalization by error (ie CorrelationFromCovariance)!")
+
+        if self._var.normalized_blocks:
+            for v in self._var.normalized_blocks:
+                if v in axes:
+                    print("Warning: Attempting to normalize in blocks of %s twice!"%v)
+                    #raise ValueError("Attempting to normalize in blocks of %s twice!"%v)
+
+    @property
+    def _natural_centerline(self):
+        return 1.0
+    
+    @property
+    def columns(self):
+        return []
+    
+    @property
+    def prebinned(self) -> bool:
+        return True
+    
+    def evaluate(self, dataset, cut):
+        if not isinstance(cut, PrebinnedOperationProtocol):
+            raise ValueError("DivideOutProfile requires a PrebinnedOperationProtocol cut")
+
+        evaluated = self._var.evaluate(dataset, cut)
+        hist, cov, _, _ = maybe_valcov_to_definitely_valcov(evaluated)
+        if hist is None:
+            raise ValueError("Can't DivideOutProfile without histogram values!")
+        
+        binning = cut.resulting_binning(dataset)
+
+        fluxes, shapes, _ = binning.get_fluxes_shapes(hist, self._axes)
+        blocks = binning.get_blocks(self._axes)
+        lenfactor = np.empty_like(shapes)
+        for block in blocks:
+            shapeblock = shapes[block['slice']]
+            lenfactor[block['slice']] = len(shapeblock)
+        
+        shapes *= lenfactor
+        
+        if cov is not None:
+            _, covshapes, _ = binning.get_fluxes_shapes_cov2d(fluxes, shapes, cov,  self._axes)
+            covshapes *= np.outer(lenfactor, lenfactor)
+            return shapes, covshapes
+        else:
+            return shapes
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, DivideOutProfile):
+            return False
+        return (self._var == other._var and
+                self._axes == other._axes)
+    
+    @property 
+    def key(self):
+        return "DivideOutProfile(%s-%s)" % (self._var.key, '-'.join(self._axes))
+    
+    def set_collection_name(self, collection_name):
+        raise ValueError("Prebinned Variables do not support set_collection_name")
+    
+    @property
+    def hasjacobian(self) -> bool:
+        return self._var.hasjacobian
+    
+    @property
+    def normalized_blocks(self) -> List[str]:
+        return self._axes + self._var.normalized_blocks
+    
+    @property
+    def normalized_by_err(self) -> bool:
+        return self._var.normalized_by_err
+    
+    @property
+    def jac_details(self) -> dict:
+        return self._var.jac_details
+    
 class NormalizePerBlock(VariableBase):
     def __init__(self, variable : PrebinnedVariableProtocol, axes : List[str]):
         self._var = variable
@@ -196,7 +284,11 @@ class NormalizePerBlock(VariableBase):
             raise ValueError("NormalizePerBlock should be applied BEFORE jacobian!")
         if self._var.normalized_by_err:
             raise ValueError("NormalizePerBlock should be applied BEFORE normalization by error (ie CorrelationFromCovariance)!")
-
+        if self._var.normalized_blocks:
+            for v in self._var.normalized_blocks:
+                if v in axes:
+                    print("Warning: Attempting to normalize in blocks of %s twice!"%v)
+        
     @property
     def _natural_centerline(self):
         return None
@@ -251,7 +343,7 @@ class NormalizePerBlock(VariableBase):
 
     @property
     def normalized_blocks(self) -> List[str]:
-        return self._axes
+        return self._axes + self._var.normalized_blocks
     
     @property
     def normalized_by_err(self) -> bool:
@@ -264,6 +356,9 @@ class NormalizePerBlock(VariableBase):
 class CorrelationFromCovariance(VariableBase):
     def __init__(self, variable : PrebinnedVariableProtocol):
         self._var = variable
+
+        if self._var.normalized_by_err:
+            raise ValueError("Attempting to normalizebyerr twice!")
 
     @property
     def _natural_centerline(self):
