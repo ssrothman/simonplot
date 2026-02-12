@@ -4,6 +4,9 @@ from simonplot.cut.Cut import AndCuts, ConcatCut, NoCut
 from simonplot.typing.Protocols import CutProtocol
 
 def common_cuts_(cut1 : CutProtocol, cut2 : CutProtocol) -> CutProtocol:
+    if cut1 == cut2:
+        return cut1
+    
     if isinstance(cut1, ConcatCut):
         cut1 = cut1.keycut
     if isinstance(cut2, ConcatCut):
@@ -39,7 +42,7 @@ def common_cuts_(cut1 : CutProtocol, cut2 : CutProtocol) -> CutProtocol:
         elif len(common) == 1:
             return common[0]
         else:
-            return AndCuts(*common)
+            return AndCuts(common)
 
     elif cut1 == cut2:
         return cut1
