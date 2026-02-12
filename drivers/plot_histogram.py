@@ -315,14 +315,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                 if last_space != -1:
                     common_prefix = common_prefix[:last_space+1]
 
-                print(denomlabel)
                 denomlabel = denomlabel[len(common_prefix):]
-                print("truncated to", denomlabel)
 
                 if len(labels) == 2:
-                    print(alllabels[1])
                     numlabel = alllabels[1][len(common_prefix):]
-                    print("truncated to", numlabel)
 
                     pad_ylabel = ('%s/%s'%(denomlabel, numlabel))
                 else:
@@ -433,9 +429,14 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             ax_pad.set_xticks(axis.edges) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
             ax_pad.set_xticks(axis.centers, minor=True) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
             ax_pad.set_xticklabels(ticklabels_strs,  # pyright: ignore[reportPossiblyUnboundVariable]
-                            rotation=0, ha='center', 
+                            rotation=30, ha='center', 
                             fontsize=14,
                             minor=True) 
+            #hide major tick labels
+            ax_pad.set_xticklabels(['']*(len(ticklabels_strs)+1),
+                                    minor=False)
+            #hide minor ticks
+            ax_pad.tick_params(axis='x', which='minor', length=0)
             ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
         else:
             ax_main.set_xticks(axis.edges) # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
