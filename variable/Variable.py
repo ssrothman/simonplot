@@ -105,8 +105,8 @@ class BasicVariable(VariableBase):
         self._collection_name = collection_name
 
 class AkNumVariable(VariableBase):
-    def __init__(self, var : VariableProtocol):
-        self._var = var
+    def __init__(self, var : VariableProtocol | str):
+        self._var = BasicVariable(var) if isinstance(var, str) else var
 
     @property
     def _natural_centerline(self):
@@ -139,9 +139,9 @@ class AkNumVariable(VariableBase):
         raise ValueError("AkNumVariable does not support set_collection_name")
 
 class RatioVariable(VariableBase):
-    def __init__(self, num : VariableProtocol, denom : VariableProtocol):
-        self._num = num
-        self._denom = denom
+    def __init__(self, num : VariableProtocol | str, denom : VariableProtocol | str):
+        self._num = BasicVariable(num) if isinstance(num, str) else num
+        self._denom = BasicVariable(denom) if isinstance(denom, str) else denom
 
     @property
     def _natural_centerline(self):
@@ -173,9 +173,9 @@ class RatioVariable(VariableBase):
         self._denom.set_collection_name(collection_name)
 
 class ProductVariable(VariableBase):
-    def __init__(self, var1 : VariableProtocol, var2 : VariableProtocol):
-        self._var1 = var1
-        self._var2 = var2
+    def __init__(self, var1 : VariableProtocol | str, var2 : VariableProtocol | str):
+        self._var1 = BasicVariable(var1) if isinstance(var1, str) else var1
+        self._var2 = BasicVariable(var2) if isinstance(var2, str) else var2
 
     @property
     def _natural_centerline(self):
@@ -207,9 +207,9 @@ class ProductVariable(VariableBase):
         self._var2.set_collection_name(collection_name)
         
 class DifferenceVariable(VariableBase):
-    def __init__(self, var1 : VariableProtocol, var2 : VariableProtocol):
-        self._var1 = var1
-        self._var2 = var2
+    def __init__(self, var1 : VariableProtocol | str, var2 : VariableProtocol | str):
+        self._var1 = BasicVariable(var1) if isinstance(var1, str) else var1
+        self._var2 = BasicVariable(var2) if isinstance(var2, str) else var2
 
     @property
     def _natural_centerline(self):
@@ -241,9 +241,9 @@ class DifferenceVariable(VariableBase):
         self._var2.set_collection_name(collection_name)
 
 class SumVariable(VariableBase):
-    def __init__(self, var1 : VariableProtocol, var2 : VariableProtocol):
-        self._var1 = var1
-        self._var2 = var2
+    def __init__(self, var1 : VariableProtocol | str, var2 : VariableProtocol | str):
+        self._var1 = BasicVariable(var1) if isinstance(var1, str) else var1
+        self._var2 = BasicVariable(var2) if isinstance(var2, str) else var2
 
     @property
     def _natural_centerline(self):
@@ -274,10 +274,8 @@ class SumVariable(VariableBase):
         self._var2.set_collection_name(collection_name)
 
 class CorrectionlibVariable(VariableBase):
-    def __init__(self, var_l : Sequence[VariableProtocol], path : str, key : str):
-        self._vars = []
-        for var in var_l:
-            self._vars.append(var)
+    def __init__(self, var_l : Sequence[VariableProtocol | str], path : str, key : str):
+        self._vars = [BasicVariable(var) if isinstance(var, str) else var for var in var_l]
 
         from correctionlib import CorrectionSet
         cset = CorrectionSet.from_file(path)
@@ -335,8 +333,8 @@ class CorrectionlibVariable(VariableBase):
         return True
     
 class UFuncVariable(VariableBase):
-    def __init__(self, var : VariableProtocol, ufunc):
-        self._var = var
+    def __init__(self, var : VariableProtocol | str, ufunc):
+        self._var = BasicVariable(var) if isinstance(var, str) else var
         self._ufunc = ufunc
 
     @property
@@ -411,11 +409,13 @@ class RateVariable(VariableBase):
 '''
 
 class ConcatVariable(VariableBase):
-    def __init__(self, vars : Sequence[VariableProtocol], keyvar : VariableProtocol | None = None):
-        self._vars = vars
+    def __init__(self, vars : Sequence[VariableProtocol | str], keyvar : VariableProtocol | str | None = None):
+        self._vars = [BasicVariable(var) if isinstance(var, str) else var for var in vars]
         if keyvar is None:
             print("WARNING: ConcatVariable without key! Automatic labels will fail")
             self._keyvar = BasicVariable("NoKey")
+        elif isinstance(keyvar, str):
+            self._keyvar = BasicVariable(keyvar)
         else:
             self._keyvar = keyvar
 
@@ -428,7 +428,9 @@ class ConcatVariable(VariableBase):
         return False
     
     @staticmethod
-    def build_for_collections(var : VariableProtocol, collections_l : List[str]):
+    def build_for_collections(var : VariableProtocol | str, collections_l : List[str]):
+        if isinstance(var, str):
+            var = BasicVariable(var)
         vars = []
         for coll in collections_l:
             v = copy.deepcopy(var)

@@ -5,6 +5,8 @@ from typing import Any, List, Sequence, Union
 
 from numpy._typing._array_like import NDArray
 
+from simonplot.variable.Variable import BasicVariable
+
 from .CutBase import UnbinnedCutBase
 from simonplot.typing.Protocols import CutProtocol, VariableProtocol, UnbinnedDatasetAccessProtocol, UnbinnedDatasetProtocol
 
@@ -34,9 +36,12 @@ class NoCut(UnbinnedCutBase):
         pass
 
 class EqualsCut(UnbinnedCutBase):
-    def __init__(self, variable : VariableProtocol, value : float | int):
+    def __init__(self, variable : VariableProtocol | str, value : float | int):
         self._value = value
-        self._variable = variable
+        if isinstance(variable, str):
+            self._variable = BasicVariable(variable)
+        else:
+            self._variable = variable
 
     @property
     def columns(self):
@@ -66,9 +71,9 @@ class EqualsCut(UnbinnedCutBase):
         self._variable.set_collection_name(collection_name)
 
 class AllEqualCut(UnbinnedCutBase):
-    def __init__(self, variables : List[VariableProtocol], value : float | int):
+    def __init__(self, variables : List[VariableProtocol | str], value : float | int):
         self._value = value
-        self._variables = variables 
+        self._variables = [BasicVariable(var) if isinstance(var, str) else var for var in variables]
 
     @property
     def columns(self):
@@ -122,10 +127,13 @@ class AllEqualCut(UnbinnedCutBase):
             var.set_collection_name(collection_name)
 
 class TwoSidedCut(UnbinnedCutBase):
-    def __init__(self, variable : VariableProtocol, low : float | int, high : float | int):
+    def __init__(self, variable : VariableProtocol | str, low : float | int, high : float | int):
         self._low = low
         self._high = high
-        self._variable = variable
+        if isinstance(variable, str):
+            self._variable = BasicVariable(variable)
+        else:
+            self._variable = variable
 
     def __eq__(self, other):
         if not isinstance(other, TwoSidedCut):  
@@ -162,9 +170,12 @@ class TwoSidedCut(UnbinnedCutBase):
         self._variable.set_collection_name(collection_name)
 
 class GreaterThanCut(UnbinnedCutBase):
-    def __init__(self, variable : VariableProtocol, value : int | float):
+    def __init__(self, variable : VariableProtocol | str , value : int | float):
         self._value = value
-        self._variable = variable
+        if isinstance(variable, str):
+            self._variable = BasicVariable(variable)
+        else:
+            self._variable = variable
 
     @property
     def columns(self):
@@ -193,9 +204,12 @@ class GreaterThanCut(UnbinnedCutBase):
         self._variable.set_collection_name(collection_name)
 
 class LessThanCut(UnbinnedCutBase):
-    def __init__(self, variable : VariableProtocol, value : int | float):
+    def __init__(self, variable : VariableProtocol | str, value : int | float):
         self._value = value
-        self._variable = variable
+        if isinstance(variable, str):
+            self._variable = BasicVariable(variable)
+        else:
+            self._variable = variable
 
     @property
     def columns(self):
