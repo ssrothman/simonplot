@@ -65,6 +65,62 @@ class EqualsCut(UnbinnedCutBase):
     def set_collection_name(self, collection_name):
         self._variable.set_collection_name(collection_name)
 
+class AllEqualCut(UnbinnedCutBase):
+    def __init__(self, variables : List[VariableProtocol], value : float | int):
+        self._value = value
+        self._variables = variables 
+
+    @property
+    def columns(self):
+        cols = []
+        for var in self._variables:
+            cols += var.columns
+        return list(set(cols))
+    
+    def evaluate(self, dataset):
+        dataset = self.ensure_valid_dataset(dataset)
+        mask = np.ones(dataset.num_rows, dtype=bool)
+        for var in self._variables:
+            ev = var.evaluate(dataset, NoCut())
+            mask = np.logical_and(mask, ev == self._value)
+
+        return mask
+    
+    @property
+    def key(self):
+        varkey = '_'.join([var.key for var in self._variables])
+        return "%sEQ%g"%(varkey, self._value)
+    
+    @property
+    def _auto_label(self):
+        varlabels = ' = '.join([var.label for var in self._variables])
+        return "%s$ = %g$"%(varlabels, self._value)
+    
+    def __eq__(self, other):
+        if not isinstance(other, AllEqualCut):
+            return False
+        
+        if self._value != other._value:
+            return False
+        
+        if len(self._variables) != len(other._variables):
+            return False
+        
+        for var in self._variables:
+            found = False
+            for other_var in other._variables:
+                if var == other_var:
+                    found = True
+                    break
+            if not found:
+                return False
+        
+        return True
+    
+    def set_collection_name(self, collection_name):
+        for var in self._variables:
+            var.set_collection_name(collection_name)
+
 class TwoSidedCut(UnbinnedCutBase):
     def __init__(self, variable : VariableProtocol, low : float | int, high : float | int):
         self._low = low
