@@ -433,10 +433,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                             fontsize=14,
                             minor=True) 
             #hide major tick labels
-            ax_pad.set_xticklabels(['']*(len(ticklabels_strs)+1),
+            ax_pad.set_xticklabels(['']*(len(ticklabels_strs)+1), # pyright: ignore[reportPossiblyUnboundVariable]
                                     minor=False)
             #hide minor ticks
-            ax_pad.tick_params(axis='x', which='minor', length=0)
+            ax_pad.tick_params(axis='x', which='minor', length=0) # pyright: ignore[reportPossiblyUnboundVariable]
             ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
         else:
             ax_main.set_xticks(axis.edges) # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
