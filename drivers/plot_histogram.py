@@ -380,6 +380,9 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         else:
             Hvals = [H[0] for H in Hs]
 
+        if density:
+            Hvals = [H / np.sum(H) for H in Hvals]
+
         min_trueY = np.max(Hvals)
         for H in Hvals:
             Hmin = np.min(H[H > 0])
