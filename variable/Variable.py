@@ -354,7 +354,7 @@ class UFuncVariable(VariableBase):
 
     @property
     def key(self):
-        return 'UFUNC%s(%s)'%(self._ufunc.__name__, self._var.key)
+        return 'UFUNC%s(%s)'%(self._ufunc.__name__.replace('<','(').replace('>',')'), self._var.key)
     
     def __eq__(self, other):
         if type(other) is not UFuncVariable:
