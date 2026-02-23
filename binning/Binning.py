@@ -119,7 +119,13 @@ class AutoBinning(BinningBase):
 
         if np.issubdtype(dtype, np.floating):
             #heuristic for a reasonable number of bins
-            nbins = min(max(20, int(np.power(minlen, 1/3))//2), 100)
+            nbins = min(max(20, int(np.power(minlen, 1/3))), 100)
+
+            #print("Building axis with")
+            #print(f"  minval: {minval}")
+            #print(f"  maxval: {maxval}")
+            #print(f"  nbins: {nbins}")
+            #print(f"  transform: {transform}")
 
             return BasicBinning(
                 nbins=nbins,
