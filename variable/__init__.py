@@ -1,4 +1,4 @@
-from .Variable import  ConstantVariable, BasicVariable, ConcatVariable, AkNumVariable, RatioVariable, ProductVariable, DifferenceVariable, SumVariable, CorrectionlibVariable, UFuncVariable
+from .Variable import  ConstantVariable, BasicVariable, ConcatVariable, AkNumVariable, RatioVariable, ProductVariable, DifferenceVariable, SumVariable, CorrectionlibVariable, UFuncVariable, RateVariable, AbsVariable
 from .CompositeVariable import RelativeResolutionVariable, Magnitude3dVariable, Magnitude2dVariable, Distance3dVariable, EtaFromXYZVariable, PhiFromXYZVariable
 from .PrebinnedVariable import BasicPrebinnedVariable, WithJacobian, NormalizePerBlock, DivideOutProfile, CorrelationFromCovariance
 __all__ = [
@@ -22,5 +22,7 @@ __all__ = [
     "WithJacobian",
     "NormalizePerBlock",
     "DivideOutProfile",
-    "CorrelationFromCovariance"
+    "CorrelationFromCovariance",
+    "RateVariable",
+    "AbsVariable"
 ]

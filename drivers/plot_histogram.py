@@ -1,5 +1,6 @@
 from bleach import clean
 from simonplot.config.lookuputil import lookup_axis_label
+from simonplot.util.rate import RateHistStruct
 from simonplot.typing.Protocols import HistplotMode, PrebinnedVariableProtocol
 from simonplot.util.common import add_axis_label, prebinned_ylabel
 from simonplot.config import config, check_auto_logx
@@ -8,6 +9,7 @@ from simonplot.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, 
 
 from simonplot.util.common import setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
 
+from simonplot.variable.Variable import RateVariable
 from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
 from simonpy.text import clean_string, strip_units, strip_dollar_signs
@@ -28,7 +30,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                    extratext : Union[str, None] = None,
                    density: bool = False,
                    logx: Union[bool, None] = None,
-                   logy: bool | None = True,
+                   logy: bool | None = None,
                    pulls : bool = False,
                    no_ratiopad : bool = False,
                    no_lumi_normalization : bool = False,
@@ -48,7 +50,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
     #resolve auto logx BEFORE building axis for unbinned variables
     if logx is None and not variable[0].prebinned:
-        logx = check_auto_logx(variable[0].key)
+        if isinstance(variable[0], RateVariable):
+            logx = check_auto_logx(variable[0].xkey)
+        else:
+            logx = check_auto_logx(variable[0].key)
 
     if (type(dataset_) is list and (len(dataset_) > 1) or len(dataset) == 1):
         style_from_dset = True
@@ -343,26 +348,32 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         ylabel = prebinned_ylabel(v, axis)
         
     else:
-        ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
+        if 'rate' in variable[0].key:
+            ylabel = lookup_axis_label(variable[0].ykey)
+        else:
+            ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
 
     ylabel += extra_ylabel
     add_axis_label(ax_main, ylabel, which='y')
 
     if logy is None:
-        if isinstance(Hs[0], hist.Hist):
-            Hvals = np.concatenate([H.values(flow=True) for H in Hs])
-        else:
-            Hvals = np.concatenate([H[0] for H in Hs])
-
-        pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
-        pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
-        pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
-        
-        test = (pct99 - pct50) / (pct50 - pct01)
-        if test > 10:
-            logy = True
-        else:
+        if 'rate' in variable[0].key:
             logy = False
+        else:
+            if isinstance(Hs[0], hist.Hist):
+                Hvals = np.concatenate([H.values(flow=True) for H in Hs])
+            else:
+                Hvals = np.concatenate([H[0] for H in Hs])
+
+            pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
+            pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
+            pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
+            
+            test = (pct99 - pct50) / (pct50 - pct01)
+            if test > 10:
+                logy = True
+            else:
+                logy = False
 
     if logx:
         ax_main.set_xscale('log')
@@ -375,7 +386,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
         ylim = ax_main.get_ylim()
 
-        if isinstance(Hs[0], hist.Hist):
+        if isinstance(Hs[0], hist.Hist) or isinstance(Hs[0], RateHistStruct):
             Hvals = [H.values(flow=True) for H in Hs]
         else:
             Hvals = [H[0] for H in Hs]
@@ -405,6 +416,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                 thefunc(cl, color='k', linestyle='dashed')
         else:
             thefunc(cls, color='k', linestyle='dashed')
+
+    if 'rate' in variable[0].key:
+        ax_main.axhline(1.0, color='k', linestyle='dashed')
+        ax_main.axhline(0.0, color='k', linestyle='dashed')
 
     if do_ratiopad:
         if pulls:

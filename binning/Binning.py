@@ -86,8 +86,8 @@ class AutoBinning(BinningBase):
         dtypes = []
         for var, cut, dataset in zip(variables, cuts, datasets):
             needed_columns = list(set(var.columns + cut.columns))
-
-            #dataset.ensure_columns(needed_columns)
+            dataset.ensure_columns(needed_columns)
+            
             minval, minval2, maxval, dtype = dataset.get_range(var, cut)
             if transform == 'log':
                 minvals.append(minval2)

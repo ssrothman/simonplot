@@ -153,6 +153,9 @@ class HistplotMode(IntEnum):
 
 @runtime_checkable
 class BaseDatasetProtocol(Protocol):
+    def ensure_columns(self, columns : Sequence[str]) -> None:
+        ...
+
     def estimate_yield(self, cut : CutProtocol, weight : VariableProtocol) -> float:
         ...
     
@@ -244,9 +247,6 @@ class BaseDatasetProtocol(Protocol):
 
 @runtime_checkable
 class UnbinnedDatasetAccessProtocol(Protocol):
-    def ensure_columns(self, columns : Sequence[str]) -> None:
-        ...
-
     def get_column(self, column_name: str, collection_name: str | None) -> np.ndarray | ak.Array:
         ...
                    
