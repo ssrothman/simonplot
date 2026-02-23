@@ -1,11 +1,16 @@
-from .Variable import UFuncVariable, SumVariable, DifferenceVariable
+from .Variable import BasicVariable, UFuncVariable, SumVariable, DifferenceVariable
 from .VariableBase import VariableBase
 from simonplot.typing.Protocols import VariableProtocol
 
 from simonpy.coordinates import xyz_to_eta_phi
 
 class RelativeResolutionVariable(VariableBase):
-    def __init__(self, gen : VariableProtocol, reco : VariableProtocol):
+    def __init__(self, gen : VariableProtocol | str, reco : VariableProtocol | str):
+        if isinstance(gen, str):
+            gen = BasicVariable(gen)
+        if isinstance(reco, str):
+            reco = BasicVariable(reco)
+
         self._gen = gen
         self._reco = reco
 
@@ -40,8 +45,15 @@ class RelativeResolutionVariable(VariableBase):
         self._reco.set_collection_name(collection_name)
 
 class Magnitude3dVariable(VariableBase):
-    def __init__(self, xvar: VariableProtocol, yvar: VariableProtocol, zvar: VariableProtocol):
+    def __init__(self, xvar: VariableProtocol | str, yvar: VariableProtocol | str, zvar: VariableProtocol | str):
         import numpy as np
+
+        if isinstance(xvar, str):
+            xvar = BasicVariable(xvar)
+        if isinstance(yvar, str):
+            yvar = BasicVariable(yvar)
+        if isinstance(zvar, str):
+            zvar = BasicVariable(zvar)
 
         self._xvar = xvar
         self._yvar = yvar
@@ -95,8 +107,13 @@ class Magnitude3dVariable(VariableBase):
         self._zvar.set_collection_name(collection_name)
 
 class Magnitude2dVariable(VariableBase):
-    def __init__(self, xvar, yvar):
+    def __init__(self, xvar: VariableProtocol | str, yvar: VariableProtocol | str):
         import numpy as np
+
+        if isinstance(xvar, str):
+            xvar = BasicVariable(xvar)
+        if isinstance(yvar, str):
+            yvar = BasicVariable(yvar)
 
         self._xvar = xvar
         self._yvar = yvar
@@ -141,8 +158,21 @@ class Magnitude2dVariable(VariableBase):
         self._yvar.set_collection_name(collection_name)
 
 class Distance3dVariable(VariableBase):
-    def __init__(self, x1var, y1var, z1var, x2var, y2var, z2var):
+    def __init__(self, x1var: VariableProtocol | str, y1var: VariableProtocol | str, z1var: VariableProtocol | str, x2var: VariableProtocol | str, y2var: VariableProtocol | str, z2var: VariableProtocol | str):
         import numpy as np
+
+        if isinstance(x1var, str):
+            x1var = BasicVariable(x1var)
+        if isinstance(y1var, str):
+            y1var = BasicVariable(y1var)
+        if isinstance(z1var, str):
+            z1var = BasicVariable(z1var)
+        if isinstance(x2var, str):
+            x2var = BasicVariable(x2var)
+        if isinstance(y2var, str):
+            y2var = BasicVariable(y2var)
+        if isinstance(z2var, str):
+            z2var = BasicVariable(z2var)
 
         self._dxvar = DifferenceVariable(x1var, x2var)
         self._dyvar = DifferenceVariable(y1var, y2var)
@@ -198,7 +228,14 @@ class Distance3dVariable(VariableBase):
         self.magnitude_var.set_collection_name(collection_name)
 
 class EtaFromXYZVariable(VariableBase):
-    def __init__(self, x, y, z):
+    def __init__(self, x : VariableProtocol | str, y: VariableProtocol | str, z: VariableProtocol | str):
+        if isinstance(x, str):
+            x = BasicVariable(x)
+        if isinstance(y, str):
+            y = BasicVariable(y)
+        if isinstance(z, str):
+            z = BasicVariable(z)
+
         self._x = x
         self._y = y
         self._z = z
@@ -240,7 +277,14 @@ class EtaFromXYZVariable(VariableBase):
         return xyz_to_eta_phi(xval, yval, zval)[0]
     
 class PhiFromXYZVariable(VariableBase):
-    def __init__(self, x, y, z):
+    def __init__(self, x : VariableProtocol | str, y: VariableProtocol | str, z: VariableProtocol | str):
+        if isinstance(x, str):
+            x = BasicVariable(x)
+        if isinstance(y, str):
+            y = BasicVariable(y)
+        if isinstance(z, str):
+            z = BasicVariable(z)
+
         self._x = x
         self._y = y
         self._z = z
