@@ -7,6 +7,7 @@ from simonplot.util.histplot import simon_histplot, simon_histplot_ratio, simon_
 
 from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
 
+from simonplot.util.profile import ProfileHistStruct, ProfileStruct
 from simonplot.util.rate import RateHistStruct
 from simonplot.variable.Variable import ConstantVariable, RateStruct
 from simonpy.AbitraryBinning import ArbitraryBinning
@@ -25,7 +26,7 @@ def call_histplot_function(H : Any,
                            fillbetween : Any,
                            **mpl_kwargs) -> Tuple[Any, Any]:
 
-    if isinstance(H, hist.Hist) or isinstance(H, RateHistStruct):
+    if isinstance(H, hist.Hist) or isinstance(H, RateHistStruct) or isinstance(H, ProfileHistStruct):
         return simon_histplot(
             H, 
             ax = ax,
@@ -53,7 +54,7 @@ def call_histplot_ratio_function(H1 : Any,
                                  ax : matplotlib.axes.Axes,
                                  density : bool,
                                  **mpl_kwargs) -> Any:
-    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct):
+    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct):
         return simon_histplot_ratio(
             H1, H2,
             ax = ax,
@@ -77,7 +78,7 @@ def accumulate_H(H1 : Any, H2 : Any) -> Any:
     if type(H1) is not type(H2):
         raise RuntimeError("accumulate_H: Cannot accumulate histograms of different types! (%s vs %s)"%(type(H1), type(H2)))
     
-    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct):
+    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct):
         H1 += H2
         return H1
     elif isinstance(H1, tuple):
@@ -168,6 +169,8 @@ class SingleDatasetBase(DatasetBase):
         v = var.evaluate(self, cut) # pyright: ignore[reportArgumentType]
         if isinstance(v, RateStruct):
             v = v.wrt
+        elif isinstance(v, ProfileStruct):
+            v = v.xvar
 
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
 
@@ -189,6 +192,8 @@ class SingleDatasetBase(DatasetBase):
         v = var.evaluate(self, cut) # pyright: ignore[reportArgumentType]
         if isinstance(v, RateStruct):
             v = v.wrt
+        elif isinstance(v, ProfileStruct):
+            v = v.xvar
 
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
 
@@ -273,6 +278,11 @@ class SingleDatasetBase(DatasetBase):
                 )
 
                 self._H = RateHistStruct(Hpass, Hfail)
+            elif isinstance(val, ProfileStruct):
+                self._H = ProfileHistStruct(
+                    val,
+                    [axis]
+                )
             else:
                 self._H = hist.Hist(
                     axis,

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import hist
 import numpy as np
 
+from simonplot.util.profile import ProfileHistStruct
 from simonplot.util.rate import RateHistStruct
 from simonpy.AbitraryBinning import ArbitraryBinning
 
@@ -123,7 +124,7 @@ def simon_histplot(H, ax=None, density=False, fillbetween = None, **kwargs):
 
     return _simon_histplot(vals, errs, edges, centers, widths,
                            ax=ax, density=density, fillbetween=fillbetween,
-                           dont_divide_by_width = isinstance(H, RateHistStruct),
+                           dont_divide_by_width = isinstance(H, (RateHistStruct, ProfileHistStruct)),
                            **kwargs)
 
 def _simon_histplot_ratio(vals_num, errs_num,
