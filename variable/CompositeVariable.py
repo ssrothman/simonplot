@@ -227,6 +227,113 @@ class Distance3dVariable(VariableBase):
         self._dzvar.set_collection_name(collection_name)
         self.magnitude_var.set_collection_name(collection_name)
 
+class DeltaPhiVariable(VariableBase):
+    def __init__(self, phi1 : VariableProtocol | str, phi2: VariableProtocol | str):
+        if isinstance(phi1, str):
+            phi1 = BasicVariable(phi1)
+        if isinstance(phi2, str):
+            phi2 = BasicVariable(phi2)
+
+        self._phi1 = phi1
+        self._phi2 = phi2
+
+    @property
+    def _natural_centerline(self):
+        return 0.0
+
+    @property
+    def prebinned(self) -> bool:
+        return False
+
+    @property
+    def columns(self):
+        return list(set(self._phi1.columns + self._phi2.columns))
+
+    @property
+    def key(self):
+        return "DeltaPhi(%s_%s)" % (self._phi1.key, self._phi2.key)
+
+    def __eq__(self, other):
+        if type(other) is not DeltaPhiVariable:
+            return False
+
+        return self._phi1 == other._phi1 and self._phi2 == other._phi2
+
+    def set_collection_name(self, collection_name):
+        self._phi1.set_collection_name(collection_name)
+        self._phi2.set_collection_name(collection_name)
+
+    def evaluate(self, dataset, cut):
+        import numpy as np
+
+        phi1val = self._phi1.evaluate(dataset, cut)
+        phi2val = self._phi2.evaluate(dataset, cut)
+
+        dphi = phi1val - phi2val
+        dphi = np.where(dphi > np.pi, dphi - 2*np.pi, dphi)
+        dphi = np.where(dphi < -np.pi, dphi + 2*np.pi, dphi)
+        return dphi
+
+class DeltaRVariable(VariableBase):
+    def __init__(self, eta1 : VariableProtocol | str, phi1: VariableProtocol | str, eta2 : VariableProtocol | str, phi2: VariableProtocol | str):
+        if isinstance(eta1, str):
+            eta1 = BasicVariable(eta1)
+        if isinstance(phi1, str):
+            phi1 = BasicVariable(phi1)
+        if isinstance(eta2, str):
+            eta2 = BasicVariable(eta2)
+        if isinstance(phi2, str):
+            phi2 = BasicVariable(phi2)
+
+        self._eta1 = eta1
+        self._phi1 = phi1
+        self._eta2 = eta2
+        self._phi2 = phi2
+
+        self._deta = DifferenceVariable(self._eta1, self._eta2)
+        self._dphi = DeltaPhiVariable(self._phi1, self._phi2)
+        self._dr = Magnitude2dVariable(self._deta, self._dphi)
+
+    @property
+    def _natural_centerline(self):
+        return None
+
+    @property
+    def prebinned(self) -> bool:
+        return False
+
+    @property
+    def columns(self):
+        return list(set(
+            self._eta1.columns +
+            self._phi1.columns +
+            self._eta2.columns +
+            self._phi2.columns
+        ))
+
+    @property
+    def key(self):
+        return "DeltaR(%s_%s__%s_%s)" % (self._eta1.key, self._phi1.key, self._eta2.key, self._phi2.key)
+
+    def __eq__(self, other):
+        if type(other) is not DeltaRVariable:
+            return False
+
+        return (self._eta1 == other._eta1 and
+                self._phi1 == other._phi1 and
+                self._eta2 == other._eta2 and
+                self._phi2 == other._phi2)
+
+    def set_collection_name(self, collection_name):
+        self._eta1.set_collection_name(collection_name)
+        self._phi1.set_collection_name(collection_name)
+        self._eta2.set_collection_name(collection_name)
+        self._phi2.set_collection_name(collection_name)
+        self._dr.set_collection_name(collection_name)
+
+    def evaluate(self, dataset, cut):
+        return self._dr.evaluate(dataset, cut)
+
 class EtaFromXYZVariable(VariableBase):
     def __init__(self, x : VariableProtocol | str, y: VariableProtocol | str, z: VariableProtocol | str):
         if isinstance(x, str):

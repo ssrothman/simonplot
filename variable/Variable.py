@@ -436,7 +436,7 @@ class AbsVariable(VariableBase):
 
     @property
     def key(self):
-        return "ABS(%s)"%(self._var.key)
+        return "ABS-%s"%(self._var.key)
     
     def __eq__(self, other):
         if type(other) is not AbsVariable:
