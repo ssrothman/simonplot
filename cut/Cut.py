@@ -275,6 +275,16 @@ class NotCut(UnbinnedCutBase):
         return self._cut == other._cut
 
 class AndCuts(UnbinnedCutBase):
+    # get in before __init__ and sometimes return a different class
+    def __new__(cls, cuts : Sequence[CutProtocol]):
+        cuts = [cut for cut in cuts if not isinstance(cut, NoCut)] #remove NoCuts, since they don't affect the logic
+        if len(cuts) == 0:
+            return NoCut()
+        elif len(cuts) == 1:
+            return cuts[0]
+        else:
+            return super(AndCuts, cls).__new__(cls)
+
     def __init__(self, cuts : Sequence[CutProtocol]):
         self._cuts = cuts
 
