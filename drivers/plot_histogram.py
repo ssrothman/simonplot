@@ -233,7 +233,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
     for extra in extra_stuff:
         if isinstance(extra, FuncBase):
-            extra.plot(ax_main, start=axis.edges[0], stop=axis.edges[-1], logx=logx) 
+            extra.plot(ax_main, start=axis.edges[0], stop=axis.edges[-1], logx=logx)  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
         else:
             raise RuntimeError("Unsupported extra_stuff type %s!"%type(extra))
         
@@ -359,7 +359,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         
     else:
         if 'rate' in variable[0].key:
-            ylabel = lookup_axis_label(variable[0].ykey)
+            ylabel = lookup_axis_label(variable[0].ykey) # pyright: ignore[reportAttributeAccessIssue]
         elif isinstance(variable[0], ProfileVariable):
             ylabel = lookup_axis_label(variable[0].ykey)
         else:
