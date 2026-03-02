@@ -174,6 +174,9 @@ class SingleDatasetBase(DatasetBase):
 
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
 
+        if np.sum(np.isfinite(values)) == 0:
+            raise RuntimeError("Dataset.get_range: No finite values found for variable %s with cut %s!"%(var.key, cut.key))
+
         minval = np.nanmin(values)
         if len(values[values > 0]) == 0:
             minval2 = np.nan
