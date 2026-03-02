@@ -1,5 +1,6 @@
 from bleach import clean
 from simonplot.config.lookuputil import lookup_axis_label
+from simonplot.plottables.Functions import FuncBase
 from simonplot.util.profile import ProfileHistStruct
 from simonplot.util.rate import RateHistStruct
 from simonplot.typing.Protocols import HistplotMode, PrebinnedVariableProtocol
@@ -20,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import hist
 
-from typing import List, Sequence, Tuple, Union
+from typing import Any, List, Sequence, Tuple, Union
 
 def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]], 
                    cut_: Union[CutProtocol, List[CutProtocol]], 
@@ -37,7 +38,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                    no_lumi_normalization : bool = False,
                    output_folder: Union[str, None] = None,
                    output_prefix: Union[str, None] = None,
-                   override_filename: Union[str, None] = None):
+                   override_filename: Union[str, None] = None,
+                   extra_stuff : List[Any] = []):
 
     if labels_ is None or len(labels_) == 1:
         nolegend = True
@@ -229,6 +231,12 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         artists.append(artist)
         Hs.append(H)
 
+    for extra in extra_stuff:
+        if isinstance(extra, FuncBase):
+            extra.plot(ax_main, start=axis.edges[0], stop=axis.edges[-1], logx=logx) 
+        else:
+            raise RuntimeError("Unsupported extra_stuff type %s!"%type(extra))
+        
     if do_ratiopad:
         Hnom = Hs[which_ref]
 
