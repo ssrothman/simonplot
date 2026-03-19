@@ -197,6 +197,56 @@ class Distance3dVariable(VariableBase):
         self._dzvar.set_collection_name(collection_name)
         self.magnitude_var.set_collection_name(collection_name)
 
+class Distance2dVariable(VariableBase):
+    def __init__(self, x1var, y1var, x2var, y2var):
+        import numpy as np
+
+        self._dxvar = DifferenceVariable(x1var, x2var)
+        self._dyvar = DifferenceVariable(y1var, y2var)
+
+        self.magnitude_var = Magnitude2dVariable(
+            self._dxvar,
+            self._dyvar
+        )
+
+    @property
+    def _natural_centerline(self):
+        return None
+    
+    @property
+    def prebinned(self) -> bool:
+        return False
+    
+    @property
+    def columns(self):
+        return list(set(
+            self._dxvar.columns +
+            self._dyvar.columns
+        ))  
+    
+    def evaluate(self, dataset, cut):
+        return self.magnitude_var.evaluate(dataset, cut)
+    
+    @property
+    def key(self):
+        return "Distance2D(%s_%s - %s_%s)"%(
+            self._dxvar._var2.key,
+            self._dyvar._var2.key,
+            self._dxvar._var1.key,
+            self._dyvar._var1.key
+        )
+    
+    def __eq__(self, other):
+        if type(other) is not Distance2dVariable:
+            return False
+        return (self._dxvar == other._dxvar and
+                self._dyvar == other._dyvar)
+    
+    def set_collection_name(self, collection_name):
+        self._dxvar.set_collection_name(collection_name)
+        self._dyvar.set_collection_name(collection_name)
+        self.magnitude_var.set_collection_name(collection_name)
+
 class EtaFromXYZVariable(VariableBase):
     def __init__(self, x, y, z):
         self._x = x

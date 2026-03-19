@@ -1,4 +1,7 @@
-from .Cut import NoCut, EqualsCut, TwoSidedCut, GreaterThanCut, LessThanCut, AndCuts, ConcatCut, NotCut, OrCuts, AllEqualCut
+from .Cut import EqualsCut, TwoSidedCut, GreaterThanCut, LessThanCut, AllEqualCut
+from .NoCut import NoCut
+from .LogicalCuts import AndCuts, NotCut, OrCuts
+from .ConcatCut import ConcatCut
 from .common_cuts import common_cuts
 from .PrebinnedCut import NoopOperation, SliceOperation, ProjectionOperation, ProjectAndSliceOperation
 

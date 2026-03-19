@@ -85,3 +85,4 @@ class PrebinnedOperationBase(CutBase):
     
     def set_collection_name(self, collection_name):
          raise ValueError("PrebinnedOperations do not support collection names")
+    

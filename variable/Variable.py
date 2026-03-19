@@ -26,7 +26,13 @@ class ConstantVariable(VariableBase):
         return []
     
     def evaluate(self, dataset, cut):
-        mask = cut.evaluate(dataset)
+        return np.asarray(self._value)
+        
+        if cut is None:
+            mask = slice(None)
+        else:
+            mask = cut.evaluate(dataset)
+
         if isinstance(mask, ak.Array):
             val = ak.ones_like(mask) * self._value
         elif isinstance(mask, np.ndarray):
@@ -76,8 +82,13 @@ class BasicVariable(VariableBase):
             return [self._collection_name + "." + self._name]
 
     def evaluate(self, dataset, cut):
-        mask = cut.evaluate(dataset)
+        if cut is None:
+            mask = slice(None)
+        else:
+            mask = cut.evaluate(dataset)
+
         val = dataset.get_column(self._name, self._collection_name)
+
         return val[mask]
     
     @property
@@ -122,8 +133,8 @@ class AkNumVariable(VariableBase):
     
     def evaluate(self, dataset, cut):
         val = self._var.evaluate(dataset, cut)
-        mask = cut.evaluate(dataset)
-        return ak.num(val[mask])
+        
+        return ak.num(val)
     
     @property
     def key(self):
@@ -302,10 +313,7 @@ class CorrectionlibVariable(VariableBase):
         return list(set(cols))
 
     def evaluate(self, dataset, cut):
-        args = []
-        for var in self._vars:
-            args.append(var.evaluate(dataset, cut))
-
+        args = [var.evaluate(dataset, cut) for var in self._vars]
         return self._eval(*args)
 
     @property
@@ -431,6 +439,7 @@ class ConcatVariable(VariableBase):
     def build_for_collections(var : VariableProtocol | str, collections_l : List[str]):
         if isinstance(var, str):
             var = BasicVariable(var)
+
         vars = []
         for coll in collections_l:
             v = copy.deepcopy(var)
@@ -448,11 +457,14 @@ class ConcatVariable(VariableBase):
         return list(set(cols))
     
     def evaluate(self, dataset, cut):
-        arrays = []
-        for var in self._vars:
-            arrays.append(var.evaluate(dataset, cut))
+        arrays = [v.evaluate(dataset, None) for v in self._vars]
         
-        return ak.concatenate(arrays)
+        if cut is None:
+            mask = slice(None)
+        else:
+            mask = cut.evaluate(dataset)
+        
+        return ak.concatenate(arrays)[mask]
     
     @property
     def key(self):

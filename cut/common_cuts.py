@@ -1,6 +1,8 @@
 
 from typing import Sequence, reveal_type
-from simonplot.cut.Cut import AndCuts, ConcatCut, NoCut
+from simonplot.cut.NoCut import NoCut
+from simonplot.cut.LogicalCuts import AndCuts
+from simonplot.cut.ConcatCut import ConcatCut
 from simonplot.typing.Protocols import CutProtocol
 
 def common_cuts_(cut1 : CutProtocol, cut2 : CutProtocol) -> CutProtocol:

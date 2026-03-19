@@ -246,10 +246,15 @@ class SingleDatasetBase(DatasetBase):
             val = variable.evaluate(self, cut)
             wgt = weight.evaluate(self, cut)
 
+            wgt, val = ak.broadcast_arrays(wgt, val)
+
             self._H = hist.Hist(
                 axis,
                 storage=hist.storage.Weight()
             )
+
+            print(wgt)
+            print(val)
 
             self._H.fill(
                 ak.flatten(val, axis=None), 
