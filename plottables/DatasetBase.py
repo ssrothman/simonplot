@@ -7,7 +7,9 @@ from simonplot.util.histplot import simon_histplot, simon_histplot_ratio, simon_
 
 from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
 
-from simonplot.variable.Variable import ConstantVariable
+from simonplot.util.profile import ProfileHistStruct, ProfileStruct
+from simonplot.util.rate import RateHistStruct
+from simonplot.variable.Variable import ConstantVariable, RateStruct
 from simonpy.AbitraryBinning import ArbitraryBinning
 
 from typing import Any, List, Sequence, Tuple, Union, assert_never
@@ -24,7 +26,7 @@ def call_histplot_function(H : Any,
                            fillbetween : Any,
                            **mpl_kwargs) -> Tuple[Any, Any]:
 
-    if isinstance(H, hist.Hist):
+    if isinstance(H, hist.Hist) or isinstance(H, RateHistStruct) or isinstance(H, ProfileHistStruct):
         return simon_histplot(
             H, 
             ax = ax,
@@ -52,7 +54,7 @@ def call_histplot_ratio_function(H1 : Any,
                                  ax : matplotlib.axes.Axes,
                                  density : bool,
                                  **mpl_kwargs) -> Any:
-    if isinstance(H1, hist.Hist):
+    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct):
         return simon_histplot_ratio(
             H1, H2,
             ax = ax,
@@ -76,7 +78,7 @@ def accumulate_H(H1 : Any, H2 : Any) -> Any:
     if type(H1) is not type(H2):
         raise RuntimeError("accumulate_H: Cannot accumulate histograms of different types! (%s vs %s)"%(type(H1), type(H2)))
     
-    if isinstance(H1, hist.Hist):
+    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct):
         H1 += H2
         return H1
     elif isinstance(H1, tuple):
@@ -165,7 +167,15 @@ class SingleDatasetBase(DatasetBase):
         self.ensure_columns(needed_columns)
 
         v = var.evaluate(self, cut) # pyright: ignore[reportArgumentType]
+        if isinstance(v, RateStruct):
+            v = v.wrt
+        elif isinstance(v, ProfileStruct):
+            v = v.xvar
+
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
+
+        if np.sum(np.isfinite(values)) == 0:
+            raise RuntimeError("Dataset.get_range: No finite values found for variable %s with cut %s!"%(var.key, cut.key))
 
         minval = np.nanmin(values)
         if len(values[values > 0]) == 0:
@@ -183,6 +193,11 @@ class SingleDatasetBase(DatasetBase):
         self.ensure_columns(needed_columns)
 
         v = var.evaluate(self, cut) # pyright: ignore[reportArgumentType]
+        if isinstance(v, RateStruct):
+            v = v.wrt
+        elif isinstance(v, ProfileStruct):
+            v = v.xvar
+
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
 
         unique_values = np.unique(values) 
@@ -246,20 +261,41 @@ class SingleDatasetBase(DatasetBase):
             val = variable.evaluate(self, cut)
             wgt = weight.evaluate(self, cut)
 
-            wgt, val = ak.broadcast_arrays(wgt, val)
+            if isinstance(val, RateStruct):
+                Hpass = hist.Hist(
+                    axis,
+                    storage=hist.storage.Weight()
+                )
+                Hfail = hist.Hist(
+                    axis,
+                    storage=hist.storage.Weight()
+                )
 
-            self._H = hist.Hist(
-                axis,
-                storage=hist.storage.Weight()
-            )
+                Hpass.fill(
+                    ak.flatten(val.wrt[val.binary==1], axis=None), 
+                    weight = self._weight * ak.flatten(wgt[val.binary==1], axis=None) 
+                )
+                Hfail.fill(
+                    ak.flatten(val.wrt[val.binary==0], axis=None), 
+                    weight = self._weight * ak.flatten(wgt[val.binary==0], axis=None) 
+                )
 
-            print(wgt)
-            print(val)
+                self._H = RateHistStruct(Hpass, Hfail)
+            elif isinstance(val, ProfileStruct):
+                self._H = ProfileHistStruct(
+                    val,
+                    [axis]
+                )
+            else:
+                self._H = hist.Hist(
+                    axis,
+                    storage=hist.storage.Weight()
+                )
 
-            self._H.fill(
-                ak.flatten(val, axis=None), 
-                weight = self._weight * ak.flatten(wgt, axis=None) 
-            )
+                self._H.fill(
+                    ak.flatten(val, axis=None), 
+                    weight = self._weight * ak.flatten(wgt, axis=None) 
+                )
 
         elif isinstance(self, PrebinnedDatasetAccessProtocol):
             cutresult = variable.evaluate(self, cut)
@@ -321,6 +357,10 @@ class SingleDatasetBase(DatasetBase):
 class DatasetStackBase(DatasetBase):
     _datasets : Sequence[BaseDatasetProtocol]
     
+    def ensure_columns(self, columns: Sequence[str]):
+        for d in self._datasets:
+            d.ensure_columns(columns)
+
     def estimate_yield(self, cut : CutProtocol, weight : VariableProtocol) -> float:
         return np.sum([d.estimate_yield(cut, weight) for d in self._datasets])
 

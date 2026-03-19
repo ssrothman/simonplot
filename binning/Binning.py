@@ -86,8 +86,8 @@ class AutoBinning(BinningBase):
         dtypes = []
         for var, cut, dataset in zip(variables, cuts, datasets):
             needed_columns = list(set(var.columns + cut.columns))
-
-            #dataset.ensure_columns(needed_columns)
+            dataset.ensure_columns(needed_columns)
+            
             minval, minval2, maxval, dtype = dataset.get_range(var, cut)
             if transform == 'log':
                 minvals.append(minval2)
@@ -119,7 +119,13 @@ class AutoBinning(BinningBase):
 
         if np.issubdtype(dtype, np.floating):
             #heuristic for a reasonable number of bins
-            nbins = min(max(50, int(np.power(minlen, 1/3))), 150)
+            nbins = min(max(20, int(np.power(minlen, 1/3))), 100)
+
+            #print("Building axis with")
+            #print(f"  minval: {minval}")
+            #print(f"  maxval: {maxval}")
+            #print(f"  nbins: {nbins}")
+            #print(f"  transform: {transform}")
 
             return BasicBinning(
                 nbins=nbins,

@@ -1,9 +1,11 @@
 import copy
 
 from simonplot.config import lookup_axis_label
+from simonplot.util.profile import ProfileStruct
+from simonplot.util.rate import RateStruct
 from .VariableBase import VariableBase
 
-from typing import List, Sequence, assert_never, override
+from typing import Any, List, Sequence, assert_never, override
 import awkward as ak
 import numpy as np
 
@@ -362,7 +364,7 @@ class UFuncVariable(VariableBase):
 
     @property
     def key(self):
-        return 'UFUNC%s(%s)'%(self._ufunc.__name__, self._var.key)
+        return 'UFUNC%s(%s)'%(self._ufunc.__name__.replace('<','(').replace('>',')'), self._var.key)
     
     def __eq__(self, other):
         if type(other) is not UFuncVariable:
@@ -373,18 +375,25 @@ class UFuncVariable(VariableBase):
     def set_collection_name(self, collection_name):
         self._var.set_collection_name(collection_name)
 
-'''
-class RateVariable(VariableBase):
-    def __init__(self, binaryfield, wrt):
-        if type(binaryfield) is str:
-            self.binaryfield = BasicVariable(binaryfield)
-        else:
-            self.binaryfield = binaryfield
+class ProfileVariable(VariableBase):
+    def __init__(self, 
+                 xvar : VariableProtocol | str, 
+                 yvar : VariableProtocol | str,
+                 mode : str,
+                 mode_params : Any = None):
+        self._xvar = BasicVariable(xvar) if isinstance(xvar, str) else xvar
+        self._yvar = BasicVariable(yvar) if isinstance(yvar, str) else yvar
+        self._mode = mode
+        self._mode_params = mode_params
 
-        if type(wrt) is str:
-            self.wrt = BasicVariable(wrt)
-        else:
-            self.wrt = wrt
+        self._modestr = self._mode
+        if self._mode_params is not None:
+            if isinstance(self._mode_params, (int, float)):
+                self._modestr += "(%s)"%self._mode_params
+            elif isinstance(self._mode_params, (tuple, list)) and len(self._mode_params) == 2:
+                self._modestr += "(%s,%s)"%(self._mode_params[0], self._mode_params[1])
+            else:
+                raise ValueError("Invalid mode_params for ProfileVariable: %s"%self._mode_params)
 
     @property
     def _natural_centerline(self):
@@ -396,25 +405,122 @@ class RateVariable(VariableBase):
     
     @property
     def columns(self):
-        return list(set(self.binaryfield.columns + self.wrt.columns))
+        return list(set(self._xvar.columns + self._yvar.columns))
+    
+    def evaluate(self, dataset, cut):
+        return ProfileStruct(
+            xvar = self._xvar.evaluate(dataset, cut),
+            yvar = self._yvar.evaluate(dataset, cut),
+            mode = self._mode, # pyright: ignore[reportArgumentType]
+            mode_params = self._mode_params
+        )
+    
+    @property
+    def key(self):
+        return "%s(%s_vs_%s)"%(self._modestr, self._yvar.key, self._xvar.key)
 
-    def evaluate(self, dataset):
-        return [self.binaryfield.evaluate(dataset),
-                self.wrt.evaluate(dataset)]
+    @property
+    def xkey(self):
+        return self._xvar.key
+    
+    @property
+    def ykey(self):
+        return self._yvar.key + self._modestr
+    
+    @property
+    def label(self):
+        return self._xvar.label
+    
+    def __eq__(self, other):
+        if type(other) is not ProfileVariable:
+            return False
+        
+        return self._xvar == other._xvar and self._yvar == other._yvar and self._mode == other._mode and self._mode_params == other._mode_params
+
+    def set_collection_name(self, collection_name):
+        self._xvar.set_collection_name(collection_name)
+        self._yvar.set_collection_name(collection_name)
+
+class RateVariable(VariableBase):
+    def __init__(self, binaryfield : VariableProtocol | str, wrt : VariableProtocol | str):
+        self._binaryfield = BasicVariable(binaryfield) if isinstance(binaryfield, str) else binaryfield
+        self._wrt = BasicVariable(wrt) if isinstance(wrt, str) else wrt
+
+    @property
+    def _natural_centerline(self):
+        return None
+    
+    @property
+    def prebinned(self) -> bool:
+        return False
+    
+    @property
+    def columns(self):
+        return list(set(self._binaryfield.columns + self._wrt.columns))
+
+    def evaluate(self, dataset, cut):
+        return RateStruct(
+            self._binaryfield.evaluate(dataset, cut),
+            self._wrt.evaluate(dataset, cut)
+        )
 
     @property
     def key(self):
-        return "%s_rate_wrt_%s"%(self.binaryfield.key, self.wrt.key)
+        return "%s_rate_wrt_%s"%(self._binaryfield.key, self._wrt.key)
+
+    @property
+    def xkey(self):
+        return self._wrt.key
+    
+    @property
+    def ykey(self):
+        return self._binaryfield.key + "_rate"
+
+    @property
+    @override
+    def label(self):
+        return self._wrt.label
 
     def __eq__(self, other):
         if type(other) is not RateVariable:
             return False
-        return self.binaryfield == other.binaryfield and self.wrt == other.wrt
+        return self._binaryfield == other._binaryfield and self._wrt == other._wrt
 
     def set_collection_name(self, collection_name):
-        self.binaryfield.set_collection_name(collection_name)
-        self.wrt.set_collection_name(collection_name)
-'''
+        self._binaryfield.set_collection_name(collection_name)
+        self._wrt.set_collection_name(collection_name)
+
+class AbsVariable(VariableBase):
+    def __init__(self, var : VariableProtocol | str):
+        self._var = BasicVariable(var) if isinstance(var, str) else var
+
+    @property
+    def _natural_centerline(self):
+        return 0.0
+    
+    @property
+    def prebinned(self) -> bool:
+        return False
+    
+    @property
+    def columns(self):
+        return self._var.columns
+
+    def evaluate(self, dataset, cut):
+        return np.abs(self._var.evaluate(dataset, cut))
+
+    @property
+    def key(self):
+        return "ABS-%s"%(self._var.key)
+    
+    def __eq__(self, other):
+        if type(other) is not AbsVariable:
+            return False
+        
+        return self._var == other._var
+
+    def set_collection_name(self, collection_name):
+        self._var.set_collection_name(collection_name)
 
 class ConcatVariable(VariableBase):
     def __init__(self, vars : Sequence[VariableProtocol | str], keyvar : VariableProtocol | str | None = None):

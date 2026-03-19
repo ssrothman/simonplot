@@ -1,5 +1,8 @@
 from bleach import clean
 from simonplot.config.lookuputil import lookup_axis_label
+from simonplot.plottables.Functions import FuncBase
+from simonplot.util.profile import ProfileHistStruct
+from simonplot.util.rate import RateHistStruct
 from simonplot.typing.Protocols import HistplotMode, PrebinnedVariableProtocol
 from simonplot.util.common import add_axis_label, prebinned_ylabel
 from simonplot.config import config, check_auto_logx
@@ -8,6 +11,7 @@ from simonplot.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, 
 
 from simonplot.util.common import setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
 
+from simonplot.variable.Variable import ProfileVariable, RateVariable
 from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
 from simonpy.text import clean_string, strip_units, strip_dollar_signs
@@ -17,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import hist
 
-from typing import List, Sequence, Tuple, Union
+from typing import Any, List, Sequence, Tuple, Union
 
 def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]], 
                    cut_: Union[CutProtocol, List[CutProtocol]], 
@@ -28,12 +32,14 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                    extratext : Union[str, None] = None,
                    density: bool = False,
                    logx: Union[bool, None] = None,
-                   logy: bool | None = True,
+                   logy: bool | None = None,
                    pulls : bool = False,
                    no_ratiopad : bool = False,
                    no_lumi_normalization : bool = False,
                    output_folder: Union[str, None] = None,
-                   output_prefix: Union[str, None] = None):
+                   output_prefix: Union[str, None] = None,
+                   override_filename: Union[str, None] = None,
+                   extra_stuff : List[Any] = []):
 
     if labels_ is None or len(labels_) == 1:
         nolegend = True
@@ -48,7 +54,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
     #resolve auto logx BEFORE building axis for unbinned variables
     if logx is None and not variable[0].prebinned:
-        logx = check_auto_logx(variable[0].key)
+        if isinstance(variable[0], (RateVariable, ProfileVariable)):
+            logx = check_auto_logx(variable[0].xkey)
+        else:
+            logx = check_auto_logx(variable[0].key)
 
     if (type(dataset_) is list and (len(dataset_) > 1) or len(dataset) == 1):
         style_from_dset = True
@@ -222,6 +231,12 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         artists.append(artist)
         Hs.append(H)
 
+    for extra in extra_stuff:
+        if isinstance(extra, FuncBase):
+            extra.plot(ax_main, start=axis.edges[0], stop=axis.edges[-1], logx=logx)  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
+        else:
+            raise RuntimeError("Unsupported extra_stuff type %s!"%type(extra))
+        
     if do_ratiopad:
         Hnom = Hs[which_ref]
 
@@ -343,26 +358,34 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         ylabel = prebinned_ylabel(v, axis)
         
     else:
-        ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
+        if 'rate' in variable[0].key:
+            ylabel = lookup_axis_label(variable[0].ykey) # pyright: ignore[reportAttributeAccessIssue]
+        elif isinstance(variable[0], ProfileVariable):
+            ylabel = lookup_axis_label(variable[0].ykey)
+        else:
+            ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
 
     ylabel += extra_ylabel
     add_axis_label(ax_main, ylabel, which='y')
 
     if logy is None:
-        if isinstance(Hs[0], hist.Hist):
-            Hvals = np.concatenate([H.values(flow=True) for H in Hs])
-        else:
-            Hvals = np.concatenate([H[0] for H in Hs])
-
-        pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
-        pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
-        pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
-        
-        test = (pct99 - pct50) / (pct50 - pct01)
-        if test > 10:
-            logy = True
-        else:
+        if 'rate' in variable[0].key:
             logy = False
+        else:
+            if isinstance(Hs[0], (hist.Hist, RateHistStruct, ProfileHistStruct)):
+                Hvals = np.concatenate([H.values(flow=True) for H in Hs])
+            else:
+                Hvals = np.concatenate([H[0] for H in Hs])
+
+            pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
+            pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
+            pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
+            
+            test = (pct99 - pct50) / (pct50 - pct01)
+            if test > 10:
+                logy = True
+            else:
+                logy = False
 
     if logx:
         ax_main.set_xscale('log')
@@ -375,7 +398,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
         ylim = ax_main.get_ylim()
 
-        if isinstance(Hs[0], hist.Hist):
+        if isinstance(Hs[0], hist.Hist) or isinstance(Hs[0], RateHistStruct) or isinstance(Hs[0], ProfileHistStruct):
             Hvals = [H.values(flow=True) for H in Hs]
         else:
             Hvals = [H[0] for H in Hs]
@@ -405,6 +428,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                 thefunc(cl, color='k', linestyle='dashed')
         else:
             thefunc(cls, color='k', linestyle='dashed')
+
+    if 'rate' in variable[0].key:
+        ax_main.axhline(1.0, color='k', linestyle='dashed')
+        ax_main.axhline(0.0, color='k', linestyle='dashed')
 
     if do_ratiopad:
         if pulls:
@@ -478,34 +505,37 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     fig.tight_layout()
 
     if output_folder is not None:
-        if output_prefix is None:
-            output_path = os.path.join(output_folder, 'hist')
+        if override_filename is not None:
+            output_path = os.path.join(output_folder, override_filename)
         else:
-            output_path = os.path.join(output_folder, output_prefix)
+            if output_prefix is None:
+                output_path = os.path.join(output_folder, 'hist')
+            else:
+                output_path = os.path.join(output_folder, output_prefix)
 
-        if all_same_key(variable):
-            output_path += '_VAR-%s' % variable[0].key 
-        
-        if all_same_key(cut):
-            output_path += '_CUT-%s' % cut[0].key
+            if all_same_key(variable):
+                output_path += '_VAR-%s' % variable[0].key 
+            
+            if all_same_key(cut):
+                output_path += '_CUT-%s' % cut[0].key
 
-        if all_same_key(weight, skip=which_data):
-            output_path += '_WGT-%s' % weight[0].key
+            if all_same_key(weight, skip=which_data):
+                output_path += '_WGT-%s' % weight[0].key
 
-        if all_same_key(dataset):
-            output_path += '_DSET-%s' % dataset[0].key
-        elif all_same_key(dataset, skip=which_data):
-            output_path += '_DSET-DATAvs%s' % dataset[0].key
-        else:
-            output_path += '_DSET-%s' % ('vs'.join([d.key for d in dataset]))
-        if logx:
-            output_path += '_LOGX'
-        if logy:
-            output_path += '_LOGY'
-        if density:
-            output_path += '_DENSITY'
-        if no_ratiopad:
-            output_path += '_NORATIO'
+            if all_same_key(dataset):
+                output_path += '_DSET-%s' % dataset[0].key
+            elif all_same_key(dataset, skip=which_data):
+                output_path += '_DSET-DATAvs%s' % dataset[0].key
+            else:
+                output_path += '_DSET-%s' % ('vs'.join([d.key for d in dataset]))
+            if logx:
+                output_path += '_LOGX'
+            if logy:
+                output_path += '_LOGY'
+            if density:
+                output_path += '_DENSITY'
+            if no_ratiopad:
+                output_path += '_NORATIO'
 
         if pulls and do_ratiopad:
             output_path += '_PULLS'

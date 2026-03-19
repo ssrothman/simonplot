@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import hist
 import numpy as np
 
+from simonplot.util.profile import ProfileHistStruct
+from simonplot.util.rate import RateHistStruct
 from simonpy.AbitraryBinning import ArbitraryBinning
 
 def _call_errorbar(ax, x, y, xerr, yerr, **kwargs):
@@ -54,14 +56,15 @@ def simon_histplot_rate(H, ax=None, **kwargs):
     return _call_errorbar(ax, centers, rate, widths/2, rateerr, **kwargs)
 
 def _simon_histplot(vals, errs, edges, centers, widths,
-                    ax=None, density=False, fillbetween = None, **kwargs):
+                    ax=None, density=False, fillbetween = None, 
+                    dont_divide_by_width = False, **kwargs):
     if density:
         N = np.sum(vals)
         vals /= N
         errs /= N
 
-    plotvals = vals/widths
-    ploterrs = errs/widths
+    plotvals = vals/widths if not dont_divide_by_width else vals
+    ploterrs = errs/widths if not dont_divide_by_width else errs
 
     if fillbetween is not None:
         # clip flow bins
@@ -120,7 +123,9 @@ def simon_histplot(H, ax=None, density=False, fillbetween = None, **kwargs):
         edges -= 0.5
 
     return _simon_histplot(vals, errs, edges, centers, widths,
-                           ax=ax, density=density, fillbetween=fillbetween, **kwargs)
+                           ax=ax, density=density, fillbetween=fillbetween,
+                           dont_divide_by_width = isinstance(H, (RateHistStruct, ProfileHistStruct)),
+                           **kwargs)
 
 def _simon_histplot_ratio(vals_num, errs_num,
                           vals_denom, errs_denom,
