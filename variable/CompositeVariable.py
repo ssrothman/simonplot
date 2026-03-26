@@ -298,7 +298,7 @@ class DeltaRVariable(VariableBase):
     def _natural_centerline(self):
         return None
     
-        @property
+    @property
     def prebinned(self) -> bool:
         return False
 
