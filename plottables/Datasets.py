@@ -11,20 +11,36 @@ import hist
 import matplotlib.axes
 
 
+from simonplot.util.comparison import ComparisonHistStruct
 from simonpy.AbitraryBinning import ArbitraryBinning
 
 from typing import List, Union, override
 
-from .DatasetBase import SingleDatasetBase, DatasetStackBase
+from .DatasetBase import SingleDatasetBase, DatasetStackBase, DatasetComparisonBase
 from simonplot.typing.Protocols import BaseDatasetProtocol
 
 class DatasetStack(DatasetStackBase):
-    def __init__(self, key : str, color : str | None, label : str, datasets : list[BaseDatasetProtocol]):
+    def __init__(self, key : str, color : str | None, label : str, datasets : list[BaseDatasetProtocol], showstack : bool = True):
         self._key = key
         self._color = color
         self._label = label
         self._datasets = datasets
+        self._showStack = showstack
         
+class DatasetComparison(DatasetComparisonBase):
+    def __init__(self, key : str, color : str | None, label : str, ylabel : str, dataset1 : BaseDatasetProtocol, dataset2 : BaseDatasetProtocol, kind : ComparisonHistStruct._SUPPORTED_MODES):
+        self._key = key
+        self._color = color
+        self._label = label
+        self._ylabel = ylabel
+        self._dataset1 = dataset1
+        self._dataset2 = dataset2
+        self._kind = kind
+
+    @property
+    def ylabel(self):
+        return self._ylabel
+    
 class NanoEventsDataset(SingleDatasetBase):
     def __init__(self, key : str, color : str | None, label : str, fname, **options):
         self._key = key

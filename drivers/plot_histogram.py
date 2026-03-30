@@ -1,5 +1,6 @@
-from bleach import clean
 from simonplot.config.lookuputil import lookup_axis_label
+from simonplot.plottables.DatasetBase import DatasetComparisonBase
+from simonplot.plottables.Datasets import DatasetComparison
 from simonplot.plottables.Functions import FuncBase
 from simonplot.util.profile import ProfileHistStruct
 from simonplot.util.rate import RateHistStruct
@@ -358,7 +359,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         ylabel = prebinned_ylabel(v, axis)
         
     else:
-        if 'rate' in variable[0].key:
+        if isinstance(dataset[0], DatasetComparison):
+            ylabel = dataset[0].ylabel
+
+        elif 'rate' in variable[0].key:
             ylabel = lookup_axis_label(variable[0].ykey) # pyright: ignore[reportAttributeAccessIssue]
         elif isinstance(variable[0], ProfileVariable):
             ylabel = lookup_axis_label(variable[0].ykey)
@@ -432,6 +436,12 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     if 'rate' in variable[0].key:
         ax_main.axhline(1.0, color='k', linestyle='dashed')
         ax_main.axhline(0.0, color='k', linestyle='dashed')
+
+    if isinstance(dataset[0], DatasetComparisonBase):
+        if dataset[0].kind == 'ratio':
+            ax_main.axhline(1.0, color='k', linestyle='dashed')
+        elif dataset[0].kind == 'difference':
+            ax_main.axhline(0.0, color='k', linestyle='dashed')
 
     if do_ratiopad:
         if pulls:

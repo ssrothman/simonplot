@@ -1,4 +1,5 @@
 from ast import TypeVar
+from h11 import Data
 import numpy as np
 import awkward as ak
 
@@ -7,6 +8,7 @@ from simonplot.util.histplot import simon_histplot, simon_histplot_ratio, simon_
 
 from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
 
+from simonplot.util.comparison import ComparisonHistStruct
 from simonplot.util.profile import ProfileHistStruct, ProfileStruct
 from simonplot.util.rate import RateHistStruct
 from simonplot.variable.Variable import ConstantVariable, RateStruct
@@ -26,7 +28,7 @@ def call_histplot_function(H : Any,
                            fillbetween : Any,
                            **mpl_kwargs) -> Tuple[Any, Any]:
 
-    if isinstance(H, hist.Hist) or isinstance(H, RateHistStruct) or isinstance(H, ProfileHistStruct):
+    if isinstance(H, hist.Hist) or isinstance(H, RateHistStruct) or isinstance(H, ProfileHistStruct) or isinstance(H, ComparisonHistStruct):
         return simon_histplot(
             H, 
             ax = ax,
@@ -54,7 +56,7 @@ def call_histplot_ratio_function(H1 : Any,
                                  ax : matplotlib.axes.Axes,
                                  density : bool,
                                  **mpl_kwargs) -> Any:
-    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct):
+    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct) or isinstance(H1, ComparisonHistStruct):
         return simon_histplot_ratio(
             H1, H2,
             ax = ax,
@@ -78,7 +80,7 @@ def accumulate_H(H1 : Any, H2 : Any) -> Any:
     if type(H1) is not type(H2):
         raise RuntimeError("accumulate_H: Cannot accumulate histograms of different types! (%s vs %s)"%(type(H1), type(H2)))
     
-    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct):
+    if isinstance(H1, hist.Hist) or isinstance(H1, RateHistStruct) or isinstance(H1, ProfileHistStruct) or isinstance(H1, ComparisonHistStruct):
         H1 += H2
         return H1
     elif isinstance(H1, tuple):
@@ -354,8 +356,142 @@ class SingleDatasetBase(DatasetBase):
         )
         return (artist, vals), self._H
     
+
+class DatasetComparisonBase(DatasetBase):
+    _dataset1 : BaseDatasetProtocol
+    _dataset2 : BaseDatasetProtocol
+    _kind : ComparisonHistStruct._SUPPORTED_MODES
+
+    @property
+    def kind(self):
+        return self._kind
+
+    def ensure_columns(self, columns: Sequence[str]):
+        self._dataset1.ensure_columns(columns)
+        self._dataset2.ensure_columns(columns)
+
+    def estimate_yield(self, cut : CutProtocol, weight : VariableProtocol) -> float:
+        raise RuntimeError("DatasetComparison.estimate_yield: Cannot estimate yield for a dataset comparison! Call estimate_yield on the individual datasets instead.")
+    
+    def get_unique(self, var : VariableProtocol, cut : CutProtocol) -> np.ndarray:
+        unique_values = np.unique(
+            np.concatenate([
+                self._dataset1.get_unique(var, cut), 
+                self._dataset2.get_unique(var, cut)
+            ])
+        )
+        return unique_values
+    
+    def get_range(self, var : VariableProtocol, cut : CutProtocol) -> Tuple[Any, Any, Any, np.dtype]:
+        r1 = self._dataset1.get_range(var, cut)
+        r2 = self._dataset2.get_range(var, cut)
+
+        minval = min(r1[0], r2[0])
+        minval2 = min(r1[1], r2[1])
+        maxval = max(r1[2], r2[2])
+        dtype = r1[3]  # Assuming both datasets have the same dtype
+
+        return (minval, minval2, maxval, dtype)
+    
+    @property
+    def binning(self) -> ArbitraryBinning:
+        if not isinstance(self._dataset1, PrebinnedDatasetAccessProtocol):
+            raise RuntimeError("DatasetComparison.binning: dataset1 is not a prebinned dataset!")
+        if not isinstance(self._dataset2, PrebinnedDatasetAccessProtocol):
+            raise RuntimeError("DatasetComparison.binning: dataset2 is not a prebinned dataset!")
+        if self._dataset1.binning != self._dataset2.binning:
+            raise RuntimeError("DatasetComparison.binning: dataset1 and dataset2 have different binnings!")
+        return self._dataset1.binning
+    
+    @property
+    def is_stack(self) -> bool:
+        return False
+    
+    def set_lumi(self, lumi):
+        raise RuntimeError("DatasetComparison.set_lumi: Cannot set lumi on a dataset comparison! Set lumi on individual datasets instead.")
+    
+    def set_xsec(self, xsec):
+        raise RuntimeError("DatasetComparison.set_xsec: Cannot set xsec on a dataset comparison! Set xsec on individual datasets instead.")
+
+    @property
+    def lumi(self) -> float:
+        if self.isMC:
+            raise RuntimeError("Dataset.lumi: Dataset is MC, no lumi defined!")
+        
+        print("Warning: lumi of a dataset comparison not really well-defined. Returning lumi of dataset1 as a placeholder.")
+        
+        return self._dataset1.lumi
+    
+    @property
+    def xsec(self) -> float:
+        if not self.isMC:
+            raise RuntimeError("Dataset.xsec: Dataset is data, no xsec defined!")
+        
+        print("Warning: xsec of a dataset comparison not really well-defined. Returning xsec of dataset1 as a placeholder.")
+        
+        return self._dataset1.xsec
+    
+    @property
+    def num_rows(self):
+        return min(self._dataset1.num_rows, self._dataset2.num_rows)
+    
+    @property
+    def isMC(self):
+        return self._dataset1.isMC and self._dataset2.isMC
+    
+    def compute_weight(self, target_lumi):
+        self._dataset1.compute_weight(target_lumi)
+        self._dataset2.compute_weight(target_lumi)
+
+    def fill_hist(self,
+                  variable: VariableProtocol, 
+                  cut: CutProtocol, 
+                  weight : VariableProtocol,
+                  axis : Any) -> Any:
+        
+        H1 = self._dataset1.fill_hist(variable, cut, weight, axis)
+        H2 = self._dataset2.fill_hist(variable, cut, weight, axis)
+
+        self._H = ComparisonHistStruct(H1, H2, mode=self._kind)
+
+        return self._H
+
+    def plot_hist(self,
+            variable: VariableProtocol, 
+            cut: CutProtocol, 
+            weight : VariableProtocol,
+            axis : Any,
+            density: bool,
+            ax : matplotlib.axes.Axes,
+            own_style : bool,
+            mode : HistplotMode,
+            _fillbetween : Union[float, None] = None,
+            **mpl_kwargs) -> Tuple[Tuple[Any, Any], Any]:
+
+        self.fill_hist(variable, cut, weight, axis)
+
+        if own_style:
+            mpl_kwargs['label'] = self.label
+            mpl_kwargs['color'] = self.color
+
+        if _fillbetween is not None:
+            raise RuntimeError("DatasetComparison.plot_hist: fillbetween is not supported for dataset comparisons!")
+
+        self._H.set_density(density)
+
+        artist, vals = call_histplot_function(
+            self._H, 
+            axis,
+            ax = ax,
+            density=False,
+            fillbetween = None,
+            **mpl_kwargs
+        )
+        return (artist, vals), self._H
+
 class DatasetStackBase(DatasetBase):
     _datasets : Sequence[BaseDatasetProtocol]
+    _showStack : bool
     
     def ensure_columns(self, columns: Sequence[str]):
         for d in self._datasets:
@@ -395,7 +531,7 @@ class DatasetStackBase(DatasetBase):
 
     @property
     def is_stack(self) -> bool:
-        return True
+        return self._showStack
     
     def set_lumi(self, lumi):
         raise RuntimeError("DatasetStack.set_lumi: Cannot set lumi on a dataset stack! Set lumi on individual datasets instead.")
