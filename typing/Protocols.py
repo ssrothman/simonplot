@@ -59,7 +59,7 @@ class PrebinnedOperationProtocol(CutProtocol, Protocol):
 @runtime_checkable
 class VariableProtocol(VariableLikeProtocol, Protocol):
     #variable return type is more permissive
-    def evaluate(self, dataset : "UnbinnedDatasetAccessProtocol | PrebinnedDatasetAccessProtocol", cut : CutProtocol) -> Any:
+    def evaluate(self, dataset : "UnbinnedDatasetAccessProtocol | PrebinnedDatasetAccessProtocol", cut : CutProtocol | None) -> Any:
         ...
 
     @property
@@ -72,7 +72,7 @@ class VariableProtocol(VariableLikeProtocol, Protocol):
 #specialize prebinned template
 @runtime_checkable
 class PrebinnedVariableProtocol(VariableLikeProtocol, Protocol):
-    def evaluate(self, dataset : "PrebinnedDatasetAccessProtocol", cut : PrebinnedOperationProtocol) -> np.ndarray | Tuple[np.ndarray, np.ndarray]:
+    def evaluate(self, dataset : "PrebinnedDatasetAccessProtocol", cut : PrebinnedOperationProtocol | None) -> np.ndarray | Tuple[np.ndarray, np.ndarray]:
         ...
 
     @property
