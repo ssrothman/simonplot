@@ -9,7 +9,7 @@ from typing import Any, List, Sequence, assert_never, override
 import awkward as ak
 import numpy as np
 
-from simonplot.typing.Protocols import VariableProtocol
+from simonplot.typing.Protocols import CutProtocol, VariableProtocol
 
 class ConstantVariable(VariableBase):
     def __init__(self, value : float | int):
@@ -577,3 +577,37 @@ class ConcatVariable(VariableBase):
             var.set_collection_name(collection_name)
 
         self._keyvar.set_collection_name(collection_name)
+
+class VariableFromCut(VariableBase):
+    def __init__(self, cut : CutProtocol):
+        self._cut = cut
+
+    @property
+    def _natural_centerline(self):
+        return [0, 1]
+    
+    @property
+    def prebinned(self) -> bool:
+        return False
+    
+    @property
+    def columns(self):
+        return self._cut.columns
+    
+    def evaluate(self, dataset, cut):
+        mask = cut.evaluate(dataset)
+        val = self._cut.evaluate(dataset)
+        return val[mask]
+    
+    @property
+    def key(self):
+        return self._cut.key
+    
+    def __eq__(self, other):
+        if type(other) is not VariableFromCut:
+            return False
+        
+        return self._cut == other._cut
+    
+    def set_collection_name(self, collection_name):
+        self._cut.set_collection_name(collection_name)
