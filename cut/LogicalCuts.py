@@ -29,14 +29,12 @@ class AndCuts(UnbinnedCutBase):
         elif len(filtered_cuts) == 1:
             return filtered_cuts[0]
         else:
-            #call super __new__ to build the AndCuts object
-            #and then manually initialize with arguments filtered_cuts
-            result = super(AndCuts, cls).__new__(cls)
-            result.__init__(filtered_cuts)
-            return result   
+            # Build the AndCuts object; __init__ will run automatically.
+            return super(AndCuts, cls).__new__(cls)
 
     def __init__(self, cuts : Sequence[CutProtocol]):
-        self._cuts = cuts
+        filtered_cuts = get_cuts_list(cuts)
+        self._cuts = filtered_cuts
 
     @property
     def columns(self):
@@ -107,14 +105,11 @@ class OrCuts(UnbinnedCutBase):
         elif len(filtered_cuts) == 1:
             return filtered_cuts[0]
         else:
-            #call super __new__ to build the OrCuts object
-            #and then manually initialize with arguments filtered_cuts
-            result = super(OrCuts, cls).__new__(cls)
-            result.__init__(filtered_cuts)
-            return result   
+            # Build the OrCuts object; __init__ will run automatically.
+            return super(OrCuts, cls).__new__(cls)
 
     def __init__(self, cuts : Sequence[CutProtocol]):
-        self._cuts = cuts
+        self._cuts = get_cuts_list(cuts)
 
     @property
     def columns(self):

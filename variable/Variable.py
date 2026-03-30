@@ -90,7 +90,7 @@ class BasicVariable(VariableBase):
             mask = cut.evaluate(dataset)
 
         val = dataset.get_column(self._name, self._collection_name)
-
+        
         return val[mask]
     
     @property
