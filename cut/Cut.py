@@ -27,7 +27,7 @@ class NoCut(UnbinnedCutBase):
 
     @property
     def _auto_label(self):
-        return "Inclusive"
+        return ""
 
     def __eq__(self, other):
         return False 
