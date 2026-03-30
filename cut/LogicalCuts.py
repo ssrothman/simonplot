@@ -2,8 +2,39 @@ from .CutBase import UnbinnedCutBase
 from typing import Any, List, Sequence, Union
 from simonplot.typing.Protocols import CutProtocol, VariableProtocol, UnbinnedDatasetAccessProtocol, UnbinnedDatasetProtocol
 import numpy as np
+from .NoCut import NoCut
+
+def get_cuts_list(cuts : Union[CutProtocol, Sequence[CutProtocol]]):
+    if isinstance(cuts, NoCut):
+        return []
+    elif hasattr(cuts, '_cuts'): # AndCuts and OrCuts have a _cuts attribute which is a list of their component cuts
+        return get_cuts_list(getattr(cuts, '_cuts'))
+    elif isinstance(cuts, CutProtocol):
+        return [cuts]
+    elif isinstance(cuts, Sequence):
+        result = []
+        for cut in cuts:
+            result += get_cuts_list(cut)
+        return result
+    else:
+        assert_never(cuts)
 
 class AndCuts(UnbinnedCutBase):
+    # get in before __init__ and sometimes return a different class
+    def __new__(cls, cuts : Sequence[CutProtocol]):
+        filtered_cuts = get_cuts_list(cuts)
+
+        if len(filtered_cuts) == 0:
+            return NoCut()
+        elif len(filtered_cuts) == 1:
+            return filtered_cuts[0]
+        else:
+            #call super __new__ to build the AndCuts object
+            #and then manually initialize with arguments filtered_cuts
+            result = super(AndCuts, cls).__new__(cls)
+            result.__init__(filtered_cuts)
+            return result   
+
     def __init__(self, cuts : Sequence[CutProtocol]):
         self._cuts = cuts
 
@@ -67,6 +98,21 @@ class AndCuts(UnbinnedCutBase):
         return True
 
 class OrCuts(UnbinnedCutBase):
+    # get in before __init__ and sometimes return a different class
+    def __new__(cls, cuts : Sequence[CutProtocol]):
+        filtered_cuts = get_cuts_list(cuts)
+
+        if len(filtered_cuts) == 0:
+            return NoCut()
+        elif len(filtered_cuts) == 1:
+            return filtered_cuts[0]
+        else:
+            #call super __new__ to build the OrCuts object
+            #and then manually initialize with arguments filtered_cuts
+            result = super(OrCuts, cls).__new__(cls)
+            result.__init__(filtered_cuts)
+            return result   
+
     def __init__(self, cuts : Sequence[CutProtocol]):
         self._cuts = cuts
 
