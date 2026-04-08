@@ -522,6 +522,61 @@ class AbsVariable(VariableBase):
     def set_collection_name(self, collection_name):
         self._var.set_collection_name(collection_name)
 
+class LogVariable(VariableBase):
+    def __init__(self, var : VariableProtocol | str, base : float | int | None = None):
+        self._var = BasicVariable(var) if isinstance(var, str) else var
+        self._base = base
+
+        if self._base is not None:
+            if self._base <= 0:
+                raise ValueError("LogVariable base must be positive")
+            if self._base == 1:
+                raise ValueError("LogVariable base must not be 1")
+
+    @property
+    def _natural_centerline(self):
+        return None
+    
+    @property
+    def prebinned(self) -> bool:
+        return False
+    
+    @property
+    def columns(self):
+        return self._var.columns
+
+    def evaluate(self, dataset, cut):
+        values = self._var.evaluate(dataset, cut)
+
+        if self._base is None:
+            return np.log(values)
+        elif self._base == 10:
+            return np.log10(values)
+        elif self._base == 2:
+            return np.log2(values)
+        else:
+            return np.log(values) / np.log(self._base)
+
+    @property
+    def key(self):
+        if self._base is None:
+            return "LOG(%s)"%(self._var.key)
+        elif self._base == 10:
+            return "LOG10(%s)"%(self._var.key)
+        elif self._base == 2:
+            return "LOG2(%s)"%(self._var.key)
+        else:
+            return "LOG%s(%s)"%(self._base, self._var.key)
+    
+    def __eq__(self, other):
+        if type(other) is not LogVariable:
+            return False
+        
+        return self._var == other._var and self._base == other._base
+
+    def set_collection_name(self, collection_name):
+        self._var.set_collection_name(collection_name)
+
 class ConcatVariable(VariableBase):
     def __init__(self, vars : Sequence[VariableProtocol | str], keyvar : VariableProtocol | str | None = None):
         self._vars = [BasicVariable(var) if isinstance(var, str) else var for var in vars]

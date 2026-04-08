@@ -141,6 +141,7 @@ By default I have provided the following implementations:
  - `SumVariable` - sum of two variables
  - `CorrectionlibVariable` - variable computed by an arbitrary function from correctionlib
  - `UFuncVariable` - variable computed by a numpy ufunc
+ - `LogVariable` - logarithm of a variable
  - `ConcatVariable` - append multiple variables into one long column 
  - `RelativeResolutionVariable` - (reco - gen)/gen
  - `Magnitude3dVariable` - |(x, y, z)|
