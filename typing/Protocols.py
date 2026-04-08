@@ -222,6 +222,15 @@ class BaseDatasetProtocol(Protocol):
                   axis : Any) -> Any:
         ...
 
+    def fill_hist_2D(self,
+                     variable_x: VariableProtocol,
+                     variable_y: VariableProtocol,
+                     cut: CutProtocol,
+                     weight: VariableProtocol,
+                     axis_x: Any,
+                     axis_y: Any) -> Any:
+        ...
+
     def plot_hist(self,
                        variable: VariableProtocol, 
                        cut: CutProtocol, 

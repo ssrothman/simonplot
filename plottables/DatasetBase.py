@@ -320,6 +320,44 @@ class SingleDatasetBase(DatasetBase):
             raise RuntimeError("fill_hist: Dataset does not implement UnbinnedDatasetAccessProtocol or PrebinnedDatasetAccessProtocol!")
         
         return self._H
+
+    def fill_hist_2D(self,
+                     variable_x: VariableProtocol,
+                     variable_y: VariableProtocol,
+                     cut: CutProtocol,
+                     weight: VariableProtocol,
+                     axis_x: Any,
+                     axis_y: Any) -> Any:
+
+        if isinstance(self, UnbinnedDatasetAccessProtocol):
+            needed_columns = list(set(variable_x.columns + variable_y.columns + cut.columns + weight.columns))
+            self.ensure_columns(needed_columns)
+
+            val_x = variable_x.evaluate(self, cut)
+            val_y = variable_y.evaluate(self, cut)
+            wgt = weight.evaluate(self, cut)
+
+            if isinstance(val_x, (RateStruct, ProfileStruct)) or isinstance(val_y, (RateStruct, ProfileStruct)):
+                raise RuntimeError("fill_hist_2D: RateStruct/ProfileStruct variables are not supported for 2D histogram filling!")
+
+            self._H = hist.Hist(
+                axis_x,
+                axis_y,
+                storage=hist.storage.Weight()
+            )
+
+            self._H.fill(
+                ak.flatten(val_x, axis=None),
+                ak.flatten(val_y, axis=None),
+                weight=self._weight * ak.flatten(wgt, axis=None)
+            )
+
+        elif isinstance(self, PrebinnedDatasetAccessProtocol):
+            raise RuntimeError("fill_hist_2D: Prebinned datasets are not supported yet for 2D histogram filling!")
+        else:
+            raise RuntimeError("fill_hist_2D: Dataset does not implement UnbinnedDatasetAccessProtocol or PrebinnedDatasetAccessProtocol!")
+
+        return self._H
     
     def plot_hist(self,
                 variable: VariableProtocol, 
@@ -451,6 +489,21 @@ class DatasetComparisonBase(DatasetBase):
         
         H1 = self._dataset1.fill_hist(variable, cut, weight, axis)
         H2 = self._dataset2.fill_hist(variable, cut, weight, axis)
+
+        self._H = ComparisonHistStruct(H1, H2, mode=self._kind)
+
+        return self._H
+
+    def fill_hist_2D(self,
+                     variable_x: VariableProtocol,
+                     variable_y: VariableProtocol,
+                     cut: CutProtocol,
+                     weight: VariableProtocol,
+                     axis_x: Any,
+                     axis_y: Any) -> Any:
+
+        H1 = self._dataset1.fill_hist_2D(variable_x, variable_y, cut, weight, axis_x, axis_y)
+        H2 = self._dataset2.fill_hist_2D(variable_x, variable_y, cut, weight, axis_x, axis_y)
 
         self._H = ComparisonHistStruct(H1, H2, mode=self._kind)
 
@@ -588,6 +641,32 @@ class DatasetStackBase(DatasetBase):
 
         for d in self._datasets[1:]:
             nextH = d.fill_hist(variable, cut, weight, axis)
+            self.H = accumulate_H(self.H, nextH)
+
+        return self.H
+
+    def fill_hist_2D(self,
+                     variable_x: VariableProtocol,
+                     variable_y: VariableProtocol,
+                     cut: CutProtocol,
+                     weight: VariableProtocol,
+                     axis_x: Any,
+                     axis_y: Any) -> Any:
+
+        if 'NormalizePerBlock' in variable_x.key or 'NormalizePerBlock' in variable_y.key:
+            raise RuntimeError("DatasetStack.fill_hist_2D: Cannot fill 2D hist with NormalizePerBlock variable on a dataset stack!")
+
+        for d in self._datasets:
+            d.fill_hist_2D(variable_x, variable_y, cut, weight, axis_x, axis_y)
+
+        if len(self._datasets) == 0:
+            raise RuntimeError("DatasetStack.fill_hist_2D: No datasets in stack!")
+
+        self.H = self._datasets[0].fill_hist_2D(variable_x, variable_y, cut, weight, axis_x, axis_y)
+        self.H = copy.deepcopy(self.H)
+
+        for d in self._datasets[1:]:
+            nextH = d.fill_hist_2D(variable_x, variable_y, cut, weight, axis_x, axis_y)
             self.H = accumulate_H(self.H, nextH)
 
         return self.H
