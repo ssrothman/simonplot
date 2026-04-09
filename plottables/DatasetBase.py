@@ -177,7 +177,10 @@ class SingleDatasetBase(DatasetBase):
         values = ak.to_numpy(ak.flatten(v, axis=None)) # pyright: ignore[reportArgumentType]
 
         if np.sum(np.isfinite(values)) == 0:
-            raise RuntimeError("Dataset.get_range: No finite values found for variable %s with cut %s!"%(var.key, cut.key))
+            # If there are no finite values, return the largest possible range for the dtype 
+            # That way things still work out for dataset stacks
+            # Even when some of the datasets have no finite values for the variable/cut combination
+            return (np.finfo(values.dtype).max, np.finfo(values.dtype).max, np.finfo(values.dtype).min, values.dtype)
 
         minval = np.nanmin(values)
         if len(values[values > 0]) == 0:
