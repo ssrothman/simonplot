@@ -1,5 +1,5 @@
 from .Datasets import NanoEventsDataset, ParquetDataset, DatasetStack, DatasetComparison
-from .PrebinnedDatasets import ValCovPairDataset, CovmatDataset
+from .PrebinnedDatasets import ValCovPairDataset, CovmatDataset, PrebinnedRootHistogramDataset
 from .PlotStuff import LineSpec, PointSpec
 
 __all__ = [
@@ -11,4 +11,5 @@ __all__ = [
     "LineSpec",
     "PointSpec",
     "DatasetComparison",
+    "PrebinnedRootHistogramDataset"
 ]

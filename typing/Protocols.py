@@ -103,6 +103,7 @@ class BinningKind(IntEnum):
     DEFAULT = 1
     BASIC = 2
     PREBINNED = 3
+    INT = 4
 
 @runtime_checkable
 class BaseBinningProtocol(Protocol):

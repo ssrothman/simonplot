@@ -5,6 +5,8 @@ from simonpy.AbitraryBinning import ArbitraryBinning
 import numpy as np
 from typing import Sequence, Tuple
 
+import uproot
+
 class PrebinnedDatasetBase(SingleDatasetBase):
     _data : np.ndarray | Tuple[np.ndarray, np.ndarray]
     _binning : ArbitraryBinning
@@ -79,21 +81,63 @@ class ValCovPairDataset(PrebinnedDatasetBase):
         return np.sum(self.data[0])
     
 
+class PrebinnedRootHistogramDataset(PrebinnedDatasetBase):
+    def __init__(self, 
+                 key : str, 
+                 path : str,
+                 color : str | None,
+                 label : str | None,
+                 isMC : bool = True):
+        self._key = key
+        self._color = color
+        self._label = label
+        
+        self._isMC = isMC
+
+        self._H = uproot.open(path).to_hist() # type: ignore
+
+    def ensure_columns(self, columns: Sequence[str]):
+        pass
+
+    @property
+    def quantitytype(self):
+        return "valcov"
+
+    @property
+    def values(self):
+        return self._H.values(flow=True)
+    
+    @property
+    def cov(self):
+        return np.diagonal(self._H.variances(flow=True))
+    
+    def project(self, axes : Sequence[str]):
+        raise NotImplementedError()
+    
+    def slice(self, edges):
+        raise NotImplementedError()
+    
+    def _dummy_dset(self, data, binning) -> PrebinnedDatasetAccessProtocol:
+        raise NotImplementedError()
+    
+    @property
+    def num_rows(self) -> int:
+        return np.sum(self.values)
+
 class CovmatDataset(PrebinnedDatasetBase):
     def __init__(self, 
-                 key:str, 
-                 color : str | None, 
+                 path : str,
+                 key : str, 
+                 color : str | None,
                  label : str | None,
-                 covmat : np.ndarray, 
                  binning : ArbitraryBinning,
                  isMC : bool = True):
         self._key = key
         self._color = color
         self._label = label
 
-        self._data = covmat
         self._binning = binning
-
+        
         self._isMC = isMC
     
     @property

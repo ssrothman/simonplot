@@ -178,6 +178,31 @@ class DefaultBinning(BinningBase):
         else:
             raise ValueError("Unknown binning type: %s"%(cfg['type']))
 
+class IntBinning(BinningBase):
+    def __init__(self, low: int, high: int):
+        self._low = low
+        self._high = high
+
+    @property
+    def has_custom_labels(self) -> bool:
+        return False
+    
+    @property
+    def label_lookup(self) -> dict[str, str]:
+        return {}
+
+    @property
+    def kind(self) -> BinningKind:
+        return BinningKind.INT
+    
+    def build_axis(self, variable: VariableProtocol) -> hist.axis.AxesMixin:
+        return hist.axis.Integer(
+            self._low,
+            self._high,
+            name=variable.key,
+            label=lookup_axis_label(variable.key)
+        )
+
 class BasicBinning(BinningBase):
     def __init__(self, nbins : int, low : Union[float, int], high: Union[float, int], transform : Union[str, None]=None):
         self._nbins = nbins
