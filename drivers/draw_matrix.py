@@ -21,7 +21,8 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
                 sym : Union[bool, None] = None,
                 logc : bool = False,
                 output_folder: Union[str, None] = None,
-                output_prefix: Union[str, None] = None):
+                output_prefix: Union[str, None] = None,
+                override_filename: Union[str, None] = None):
     
     variable = _ExtractCovarianceMatrix(variable)
 
@@ -142,19 +143,22 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
     fig.tight_layout()
 
     if output_folder is not None:
-        if output_prefix is None:
-            output_path = os.path.join(output_folder, 'matrix')
+        if override_filename is not None:
+            output_path = os.path.join(output_folder, override_filename)
         else:
-            output_path = os.path.join(output_folder, output_prefix)
+            if output_prefix is None:
+                output_path = os.path.join(output_folder, 'matrix')
+            else:
+                output_path = os.path.join(output_folder, output_prefix)
 
-        output_path += '_VAR-%s' % variable.key
-        output_path += '_CUT-%s' % cut.key
-        output_path += '_DSET-%s' % dataset.key
-        
-        if logc:
-            output_path += '_LOGC'
-        if sym:
-            output_path += '_SYM'
+            output_path += '_VAR-%s' % variable.key
+            output_path += '_CUT-%s' % cut.key
+            output_path += '_DSET-%s' % dataset.key
+            
+            if logc:
+                output_path += '_LOGC'
+            if sym:
+                output_path += '_SYM'
 
         savefig(fig, output_path)
     else:
