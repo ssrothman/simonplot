@@ -6,11 +6,12 @@ import awkward as ak
 from simonplot.cut.Cut import NoCut
 from simonplot.util.histplot import simon_histplot, simon_histplot_ratio, simon_histplot_arbitrary, simon_histplot_ratio_arbitrary
 
-from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
+from simonplot.typing.Protocols import BaseDatasetProtocol, HistplotMode, PrebinnedDatasetAccessProtocol, PrebinnedOperationProtocol, PrebinnedVariableProtocol, UnbinnedDatasetAccessProtocol, VariableProtocol, CutProtocol
 
 from simonplot.util.comparison import ComparisonHistStruct
 from simonplot.util.profile import ProfileHistStruct, ProfileStruct
 from simonplot.util.rate import RateHistStruct
+from simonplot.variable.PrebinnedVariable import strip_variable
 from simonplot.variable.Variable import ConstantVariable, RateStruct
 from simonpy.AbitraryBinning import ArbitraryBinning
 
@@ -20,6 +21,8 @@ import matplotlib.axes
 import copy
 
 from abc import ABC, abstractmethod
+
+from simonpy.stats_v2 import apply_jacobian, normalize_per_block
 
 def call_histplot_function(H : Any, 
                            axis : Any,
@@ -86,7 +89,18 @@ def accumulate_H(H1 : Any, H2 : Any) -> Any:
     elif isinstance(H1, tuple):
         if len(H1) != 2 or len(H2) != 2:
             raise RuntimeError("accumulate_H: Unsupported histogram type! [tuple with len != 2]")
-        return (H1[0] + H2[0], H1[1] + H2[1])
+        
+        # need to be careful with NaNs here
+        # so that they don't kill valid bin entires
+        val0 = np.nan_to_num(H1[0], copy=False, nan=0)
+        val1 = np.nan_to_num(H2[0], copy=False, nan=0)
+        cov0 = np.nan_to_num(H1[1], copy=False, nan=0)
+        cov1 = np.nan_to_num(H2[1], copy=False, nan=0)
+
+        valsum = val0 + val1
+        covsum = cov0 + cov1
+
+        return (valsum, covsum)
     else:
         raise RuntimeError("accumulate_H: Unsupported histogram type! [neither hist.Hist nor tuple, but %s]"%type(H1))
 
@@ -313,7 +327,10 @@ class SingleDatasetBase(DatasetBase):
             if not isinstance(weight, ConstantVariable):
                 raise RuntimeError("fill_hist: For prebinned datasets, only ConstantVariable is supported as weight variable!")
             
-            wgt = weight._value * self._weight
+            if 'NormalizePerBlock' in variable.key:
+                wgt = weight._value
+            else:
+                wgt = weight._value * self._weight
 
             val = val * wgt
             cov = cov * np.square(wgt)
@@ -625,26 +642,49 @@ class DatasetStackBase(DatasetBase):
                   weight : VariableProtocol,
                   axis : Any) -> Any:
        
-        if 'NormalizePerBlock' in variable.key:
-            # Kinda a weird edge case
-            # When using a NormalizePerBlock variable, there is an implicit normalization
-            # so stacks cannot just be summed up normally ....
-            # for now just throw an error....
-            # maybe later can implement some clever reweighting of the constituent blocks
-            raise RuntimeError("DatasetStack.fill_hist: Cannot fill hist with NormalizePerBlock variable on a dataset stack!")
-
-        for d in self._datasets:
-            d.fill_hist(variable, cut, weight, axis)
-
         if len(self._datasets) == 0:
             raise RuntimeError("DatasetStack.fill_hist: No datasets in stack!")
-        
+    
+        if isinstance(variable, PrebinnedVariableProtocol):
+            variable, details = strip_variable(variable) # type: ignore
+
         self.H = self._datasets[0].fill_hist(variable, cut, weight, axis)
         self.H = copy.deepcopy(self.H)
+        
+        nonzerofluxes = []
+
+        if isinstance(cut, PrebinnedOperationProtocol) and 'NormalizePerBlock' in variable.key:
+            binning = cut.resulting_binning(self._datasets[0]) # type: ignore
+            axes = ['Jpt']
+            fluxes, _, _ = binning.get_fluxes_shapes(self.H[0], axes)
+            nonzerofluxes.append(fluxes > 0)
 
         for d in self._datasets[1:]:
             nextH = d.fill_hist(variable, cut, weight, axis)
             self.H = accumulate_H(self.H, nextH)
+
+        if isinstance(variable, PrebinnedVariableProtocol):
+            if 'normalized_blocks' in details: # type: ignore
+                # perform block normalization
+                axes = details['normalized_blocks'] # type: ignore
+                binning = cut.resulting_binning( # type: ignore
+                    self._datasets[0] # type: ignore
+                )
+
+                self.H = normalize_per_block(
+                    self.H[0], self.H[1],
+                    binning, axes
+                )
+            
+            if 'jac_details' in details: # type: ignore
+                # perform jacobian transformation
+                binning = cut.resulting_binning( # type: ignore
+                    self._datasets[0] # type: ignore
+                )
+                self.H = apply_jacobian(
+                    self.H[0], self.H[1],
+                    binning, details['jac_details'] # type: ignore
+                )
 
         return self.H
 

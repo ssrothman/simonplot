@@ -2,8 +2,9 @@ from turtle import up
 from simonplot.typing.Protocols import VariableProtocol
 from simonplot.typing.Protocols import PrebinnedOperationProtocol, PrebinnedVariableProtocol
 from simonpy.sanitization import maybe_valcov_to_definitely_valcov
+from simonpy.stats_v2 import apply_jacobian, normalize_per_block
 from .VariableBase import VariableBase
-from typing import Sequence, assert_never, override, List
+from typing import Sequence, Tuple, assert_never, override, List
 import numpy as np
 
 class BasicPrebinnedVariable(VariableBase):
@@ -105,56 +106,8 @@ class WithJacobian(VariableBase):
 
         binning = cut.resulting_binning(dataset)
 
-        lower_edges = binning.lower_edges()
-        upper_edges = binning.upper_edges()
-
-        for key in self._clip_negativeinf:
-            if key in lower_edges:
-                edges = lower_edges[key]
-                lower_edges[key] = np.where(edges == -np.inf, self._clip_negativeinf[key], edges)
-                
-
-        for key in self._clip_positiveinf:
-            if key in upper_edges:
-                edges = upper_edges[key]
-                upper_edges[key] = np.where(edges == np.inf, self._clip_positiveinf[key], edges)
-
-        for key in self._wrt:
-            if np.any(~np.isfinite(lower_edges[key])):
-                raise ValueError(f"Lower edges for axis {key} contain non-finite values even after clipping!")
-        for key in self._wrt:
-            if np.any(~np.isfinite(upper_edges[key])):
-                raise ValueError(f"Upper edges for axis {key} contain non-finite values even after clipping!")
-
-        widths = {}
-        for key in self._wrt:
-            if key in self._radial_coords:
-                widths[key] = np.square(upper_edges[key]) - np.square(lower_edges[key])
-            else:
-                widths[key] = upper_edges[key] - lower_edges[key]
-
-        jacobian = np.ones(shape = (thelen,), dtype= thedtype)
-        for key in self._wrt:
-            jacobian *= widths[key].ravel()
-
-        jacobian[jacobian == 0] = 1.0 #avoid division by zero
-
-        if hist is not None:
-            density_hist = hist / jacobian
-
-        if cov is not None:
-            cov_jacobian = np.outer(jacobian, jacobian)
-            density_cov = cov / cov_jacobian
-
-        if hist is None and cov is None:
-            raise ValueError("This shouldn't be possible. Somehow both val and cov are None?")
-        elif hist is None:
-            return density_cov # pyright: ignore[reportPossiblyUnboundVariable]
-        elif cov is None:
-            return density_hist # pyright: ignore[reportPossiblyUnboundVariable]
-        else:
-            return density_hist, density_cov # pyright: ignore[reportPossiblyUnboundVariable]
-
+        return apply_jacobian(hist, cov, binning, self.jac_details) # type: ignore
+    
     def __eq__(self, other) -> bool:
         if not isinstance(other, WithJacobian):
             return False
@@ -312,13 +265,9 @@ class NormalizePerBlock(VariableBase):
         
         binning = cut.resulting_binning(dataset)
 
-        fluxes, shapes, _ = binning.get_fluxes_shapes(hist, self._axes)
-
-        if cov is not None:
-            _, covshapes, _ = binning.get_fluxes_shapes_cov2d(fluxes, shapes, cov,  self._axes)
-            return shapes, covshapes
-        else:
-            return shapes
+        return normalize_per_block(
+            hist, cov, binning, self._axes
+        )
     
     def __eq__(self, other) -> bool:
         if not isinstance(other, NormalizePerBlock):
@@ -477,3 +426,19 @@ class _ExtractCovarianceMatrix(VariableBase):
     @property
     def jac_details(self) -> dict:
         return self._var.jac_details
+
+def strip_variable(variable : PrebinnedVariableProtocol) -> Tuple[PrebinnedVariableProtocol, dict]:
+    if isinstance(variable, BasicPrebinnedVariable):
+        return variable, {}
+    elif isinstance(variable, WithJacobian):
+        print("Stripping jacobian from variable")
+        subvar, details = strip_variable(variable._var)
+        details['jac_details'] = variable.jac_details
+        return subvar, details
+    elif isinstance(variable, NormalizePerBlock):
+        print("Stripping NormalizePerBlock from variable")
+        subvar, details = strip_variable(variable._var)
+        details['normalized_blocks'] = variable.normalized_blocks
+        return subvar, details
+    else:
+        raise ValueError("Unknown variable type %s"%type(variable))
