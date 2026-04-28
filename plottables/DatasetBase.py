@@ -163,6 +163,7 @@ class DatasetBase(ABC):
 
 class SingleDatasetBase(DatasetBase):
     _H : Any
+    _weight : float = 1.0
 
     def estimate_yield(self, cut : CutProtocol, weight : VariableProtocol) -> float:
         needed_columns = list(set(cut.columns + weight.columns))
