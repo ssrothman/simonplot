@@ -2,6 +2,7 @@ from simonplot.config import config, check_auto_logx, lookup_axis_label
 
 from simonplot.typing.Protocols import PrebinnedVariableProtocol, VariableProtocol, PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol
 from simonplot.util.common import make_radial_ax, prebinned_ylabel, setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
+from simonplot.util.evaluate import evaluate_on_dataset
 
 from simonpy.AbitraryBinning import ArbitraryBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
@@ -39,8 +40,10 @@ def draw_radial_histogram(
                    extratext : Union[str, None] = None,
                    logc : bool | None = None,
                    sym : bool | None = None,
+                   override_cbarlabel : Union[str, None] = None,
                    output_folder: Union[str, None] = None,
-                   output_prefix: Union[str, None] = None):
+                   output_prefix: Union[str, None] = None,
+                   override_filename: Union[str, None] = None):
     
     #get resulting binning
     axis = binning.build_prebinned_axis(dataset, cut)
@@ -71,7 +74,7 @@ def draw_radial_histogram(
         raise ValueError("Could not determine angular range from edges, got %f" % phirange)
     
     #get values to plot
-    hist2d = variable.evaluate(dataset, cut)
+    hist2d = evaluate_on_dataset(dataset, variable, cut) # type: ignore
     if isinstance(hist2d, tuple):
         hist2d = hist2d[0]
     
@@ -173,7 +176,11 @@ def draw_radial_histogram(
 
     cbar = fig.colorbar(artist, ax=ax, pad=0.1)
 
-    cbarlabel = prebinned_ylabel(variable, axis)
+    if override_cbarlabel is None:
+        cbarlabel = prebinned_ylabel(variable, axis)
+    else:
+        cbarlabel = override_cbarlabel
+
     cbar.set_label(cbarlabel)
 
     placed_text = add_text(
@@ -200,17 +207,20 @@ def draw_radial_histogram(
     fig.tight_layout()
 
     if output_folder is not None:
-        if output_prefix is None:
-            output_path = os.path.join(output_folder, 'radial_hist')
+        if override_filename is not None:
+            output_path = os.path.join(output_folder, override_filename)
         else:
-            output_path = os.path.join(output_folder, output_prefix)
+            if output_prefix is None:
+                output_path = os.path.join(output_folder, 'radial_hist')
+            else:
+                output_path = os.path.join(output_folder, output_prefix)
 
-        output_path += '_VAR-%s' % variable.key
-        output_path += '_CUT-%s' % cut.key
-        output_path += '_DSET-%s' % dataset.key
-        
-        if logc:
-            output_path += '_LOGC'
+            output_path += '_VAR-%s' % variable.key
+            output_path += '_CUT-%s' % cut.key
+            output_path += '_DSET-%s' % dataset.key
+            
+            if logc:
+                output_path += '_LOGC'
 
         savefig(fig, output_path)
     else:

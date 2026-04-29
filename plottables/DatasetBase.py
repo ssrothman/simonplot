@@ -655,7 +655,7 @@ class DatasetStackBase(DatasetBase):
         nonzerofluxes = []
 
         if isinstance(cut, PrebinnedOperationProtocol) and 'NormalizePerBlock' in variable.key:
-            binning = cut.resulting_binning(self._datasets[0]) # type: ignore
+            binning = cut.resulting_binning(self._datasets[0].binning) # type: ignore
             axes = ['Jpt']
             fluxes, _, _ = binning.get_fluxes_shapes(self.H[0], axes)
             nonzerofluxes.append(fluxes > 0)
@@ -669,7 +669,7 @@ class DatasetStackBase(DatasetBase):
                 # perform block normalization
                 axes = details['normalized_blocks'] # type: ignore
                 binning = cut.resulting_binning( # type: ignore
-                    self._datasets[0] # type: ignore
+                    self._datasets[0].binning # type: ignore
                 )
 
                 self.H = normalize_per_block(
@@ -680,7 +680,7 @@ class DatasetStackBase(DatasetBase):
             if 'jac_details' in details: # type: ignore
                 # perform jacobian transformation
                 binning = cut.resulting_binning( # type: ignore
-                    self._datasets[0] # type: ignore
+                    self._datasets[0].binning # type: ignore
                 )
                 self.H = apply_jacobian(
                     self.H[0], self.H[1],

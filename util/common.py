@@ -48,6 +48,9 @@ def make_axes_withpad(fig: matplotlib.figure.Figure):
     return (ax_main, ax_pad)
 
 def add_cms_legend(ax, isdata: bool, lumi: Union[float, None]=None):
+    if config['cms_label'] == '': # short circuit if cms_label is empty, since that means the user doesn't want a label at all
+        return
+    
     if isdata:
         hep.cms.label(ax=ax, data=True, 
                       lumi='%0.2f'%lumi,
@@ -348,10 +351,10 @@ def prebinned_ylabel(var : PrebinnedVariableProtocol, binning : ArbitraryBinning
         for ax in axes:
             l = clean_string(lookup_axis_label(ax))
             if ax in var.jac_details['radial_coords']:
-                denom += l + 'd(' + l + ')'
+                denom += l + ' d(' + l + ')'
             else:
-                denom += 'd(' + l + ')'
-        ylabel = '$\\frac{dN}{%s}$' % denom
+                denom += ' d(' + l + ')'
+        ylabel = '$\\frac{dN}{%s}$' % denom.strip()
     else:
         ylabel = 'Bin counts'
 

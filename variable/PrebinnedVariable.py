@@ -2,7 +2,7 @@ from turtle import up
 from simonplot.typing.Protocols import VariableProtocol
 from simonplot.typing.Protocols import PrebinnedOperationProtocol, PrebinnedVariableProtocol
 from simonpy.sanitization import maybe_valcov_to_definitely_valcov
-from simonpy.stats_v2 import apply_jacobian, normalize_per_block
+from simonpy.stats_v2 import apply_jacobian, divide_out_profile, normalize_per_block
 from .VariableBase import VariableBase
 from typing import Sequence, Tuple, assert_never, override, List
 import numpy as np
@@ -104,7 +104,7 @@ class WithJacobian(VariableBase):
         #hist = np.ndarray with shape (thelen,), or else None
         #cov = np.ndarray with shape (thelen, thelen), or else None
 
-        binning = cut.resulting_binning(dataset)
+        binning = cut.resulting_binning(dataset.binning)
 
         return apply_jacobian(hist, cov, binning, self.jac_details) # type: ignore
     
@@ -182,23 +182,9 @@ class DivideOutProfile(VariableBase):
         if hist is None:
             raise ValueError("Can't DivideOutProfile without histogram values!")
         
-        binning = cut.resulting_binning(dataset)
+        binning = cut.resulting_binning(dataset.binning)
 
-        fluxes, shapes, _ = binning.get_fluxes_shapes(hist, self._axes)
-        blocks = binning.get_blocks(self._axes)
-        lenfactor = np.empty_like(shapes)
-        for block in blocks:
-            shapeblock = shapes[block['slice']]
-            lenfactor[block['slice']] = len(shapeblock)
-        
-        shapes *= lenfactor
-        
-        if cov is not None:
-            _, covshapes, _ = binning.get_fluxes_shapes_cov2d(fluxes, shapes, cov,  self._axes)
-            covshapes *= np.outer(lenfactor, lenfactor)
-            return shapes, covshapes
-        else:
-            return shapes
+        return divide_out_profile(hist, cov, binning, self._axes)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, DivideOutProfile):
@@ -263,7 +249,14 @@ class NormalizePerBlock(VariableBase):
         if hist is None:
             raise ValueError("Can't NormalizerPerBlock without histogram values!")
         
-        binning = cut.resulting_binning(dataset)
+        print("Normalize per block:")
+        print("\tvariable: %s"%self._var.key)
+        print("\tblocks: %s"%self._axes)
+        print("\tdataset: %s (%s)"%(dataset.key, type(dataset)))
+        print("\tcut: %s (%s)"%(cut.key, type(cut)))
+
+        binning = cut.resulting_binning(dataset.binning)
+        print("\tbinning: %s"%binning)
 
         return normalize_per_block(
             hist, cov, binning, self._axes
@@ -439,6 +432,10 @@ def strip_variable(variable : PrebinnedVariableProtocol) -> Tuple[PrebinnedVaria
         print("Stripping NormalizePerBlock from variable")
         subvar, details = strip_variable(variable._var)
         details['normalized_blocks'] = variable.normalized_blocks
+        return subvar, details
+    elif isinstance(variable, DivideOutProfile):
+        subvar, details = strip_variable(variable._var)
+        details['profiled_blocks'] = variable.normalized_blocks
         return subvar, details
     else:
         raise ValueError("Unknown variable type %s"%type(variable))
