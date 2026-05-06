@@ -1,6 +1,7 @@
 from turtle import up
 from simonplot.typing.Protocols import VariableProtocol
 from simonplot.typing.Protocols import PrebinnedOperationProtocol, PrebinnedVariableProtocol
+from simonpy.AbitraryBinning import ArbitraryGenRecoBinning
 from simonpy.sanitization import maybe_valcov_to_definitely_valcov
 from simonpy.stats_v2 import apply_jacobian, divide_out_profile, normalize_per_block
 from .VariableBase import VariableBase
@@ -397,12 +398,15 @@ class _ExtractCovarianceMatrix(VariableBase):
             raise ValueError("ExtractCovarianceMatrix requires a PrebinnedOperationProtocol cut")
 
         evaluated = self._var.evaluate(dataset, cut)
-        hist, cov, _, _ = maybe_valcov_to_definitely_valcov(evaluated)
+        if isinstance(dataset.binning, ArbitraryGenRecoBinning):
+            return evaluated
+        else:
+            hist, cov, _, _ = maybe_valcov_to_definitely_valcov(evaluated)
 
-        if cov is None:
-            raise RuntimeError("ExtractCovarianceMatrix needs covariance!!")
-        
-        return cov
+            if cov is None:
+                raise RuntimeError("ExtractCovarianceMatrix needs covariance!!")
+            
+            return cov
     
     @property
     def hasjacobian(self) -> bool:

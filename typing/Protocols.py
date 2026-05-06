@@ -56,6 +56,9 @@ class PrebinnedOperationProtocol(CutProtocol, Protocol):
     def _compute_resulting_binning(self, binning : ArbitraryBinning) -> ArbitraryBinning:
         ...
 
+    def clear_resulting_binning_cache(self) -> None:
+        ... 
+
 @runtime_checkable
 class VariableProtocol(VariableLikeProtocol, Protocol):
     #variable return type is more permissive

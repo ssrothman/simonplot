@@ -1,7 +1,7 @@
 from simonplot.typing.Protocols import PrebinnedDatasetAccessProtocol
 from .DatasetBase import SingleDatasetBase
 
-from simonpy.AbitraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning, ArbitraryGenRecoBinning
 import numpy as np
 from typing import Sequence, Tuple
 
@@ -9,7 +9,7 @@ import uproot
 
 class PrebinnedDatasetBase(SingleDatasetBase):
     _data : np.ndarray | Tuple[np.ndarray, np.ndarray]
-    _binning : ArbitraryBinning
+    _binning : ArbitraryBinning | ArbitraryGenRecoBinning
 
     @property
     def data(self):
@@ -54,9 +54,11 @@ class ValCovPairDataset(PrebinnedDatasetBase):
     def project(self, axes : Sequence[str]):
         result = self.values
         projbinning = self._binning
+        assert(isinstance(projbinning, ArbitraryBinning))
         for ax in axes:
             #print("Projecting out axis:", ax)  
             #print("result.sum() = ", np.sum(result))
+            assert(isinstance(result, np.ndarray))
             result, projbinning = projbinning.project_out(result, ax)
 
         covresult = self.cov
@@ -64,22 +66,82 @@ class ValCovPairDataset(PrebinnedDatasetBase):
         for ax in axes:
             #print("Projecting out axis from cov:", ax)
             #print("covresult.sum() = ", np.sum(covresult))
+            assert(isinstance(b2, ArbitraryBinning))
+            assert(isinstance(covresult, np.ndarray))
             covresult, b2 = b2.project_out_cov2d(covresult, ax)
 
         return result, covresult
 
     def slice(self, edges):
+        assert(isinstance(self._binning, ArbitraryBinning))
         result = self._binning.get_slice(self.values, edges)
         covresult = self._binning.get_slice_cov2d(self.cov, edges)
         return result, covresult
 
     def _dummy_dset(self, data, binning) -> PrebinnedDatasetAccessProtocol:
-        return ValCovPairDataset("", '', '', data, binning)
+        return ValCovPairDataset("", '', '', data, binning) # type: ignore
     
     @property
     def num_rows(self) -> int:
         return np.sum(self.data[0])
+
+# pretends to be a constructor, but actually just instantiates a ValCovPairDataset
+def ValNoCovDataset(data : np.ndarray, *args, **kwargs) -> ValCovPairDataset:
+    cov = np.zeros((len(data), len(data)), dtype=data.dtype)
+    return ValCovPairDataset(*args, data=(data, cov), **kwargs)
+
+class TransferMatrixDataset(PrebinnedDatasetBase):
+    def __init__(self, 
+                 key : str, 
+                 color : str | None,
+                 label : str | None,
+                 data : np.ndarray, 
+                 binning : ArbitraryGenRecoBinning,
+                 isMC : bool = True):
+        self._key = key
+        self._color = color
+        self._label = label
+
+        self._data = data
+        self._binning = binning
+
+        self._isMC = isMC
+
+    def ensure_columns(self, columns: Sequence[str]):
+        pass
+
+    @property
+    def quantitytype(self):
+        return "transfer"
     
+    @property
+    def transfer(self) -> np.ndarray:
+        assert(isinstance(self._data, np.ndarray))
+        return self._data
+    
+    def project(self, axes : Sequence[str]) -> np.ndarray:
+        result = self.transfer
+        projbinning = self._binning
+        assert(isinstance(projbinning, ArbitraryGenRecoBinning))
+        for ax in axes:
+            assert(isinstance(result, np.ndarray))
+            result, projbinning = projbinning.project_out_transfer2d(result, ax)
+
+        assert(isinstance(result, np.ndarray))
+        return result
+    
+    def slice(self, edges):
+        assert(isinstance(self._binning, ArbitraryGenRecoBinning))
+        result = self._binning.get_slice_transfer2d(self.transfer, edges)
+        assert(isinstance(result, np.ndarray))
+        return result
+    
+    def _dummy_dset(self, data, binning) -> PrebinnedDatasetAccessProtocol:
+        return TransferMatrixDataset("", '', '', data, binning) # type: ignore  
+    
+    @property
+    def num_rows(self) -> int:
+        return np.sum(self.data)
 
 class PrebinnedRootHistogramDataset(PrebinnedDatasetBase):
     def __init__(self, 
@@ -154,19 +216,19 @@ class CovmatDataset(PrebinnedDatasetBase):
         result = self.covmat
         projbinning = self._binning
         for ax in axes:
-            result, projbinning = projbinning.project_out_cov2d(result, ax)
+            result, projbinning = projbinning.project_out_cov2d(result, ax) # type: ignore
 
         return result
 
     def slice(self, edges : dict):
-        result = self._binning.get_slice_cov2d(self.covmat, edges)
+        result = self._binning.get_slice_cov2d(self.covmat, edges) # type: ignore
         return result
     
     def ensure_columns(self, columns: Sequence[str]):
         pass
 
     def _dummy_dset(self, data, binning) -> PrebinnedDatasetAccessProtocol:
-        return CovmatDataset("", '', '', data, binning)
+        return CovmatDataset("", '', '', data, binning) # type: ignore
     
     @property
     def num_rows(self) -> int:

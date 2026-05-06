@@ -8,6 +8,7 @@ from simonplot.config.lookuputil import lookup_axis_label
 from simonplot.variable.PrebinnedVariable import _ExtractCovarianceMatrix
 from simonplot.typing.Protocols import PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol, PrebinnedVariableProtocol, VariableProtocol
 from simonplot.util.common import add_axis_label, add_text, label_from_binning, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend
+from simonpy.AbitraryBinning import ArbitraryBinning, ArbitraryGenRecoBinning
 from simonpy.text import strip_units
 
 import numpy as np
@@ -22,7 +23,8 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
                 logc : bool = False,
                 output_folder: Union[str, None] = None,
                 output_prefix: Union[str, None] = None,
-                override_filename: Union[str, None] = None):
+                override_filename: Union[str, None] = None,
+                override_cbarlabel: Union[str, None] = None):
     
     variable = _ExtractCovarianceMatrix(variable)
 
@@ -31,6 +33,7 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
 
     #get matrix to plot
     mat = variable.evaluate(dataset, cut)
+
     if not isinstance(mat, np.ndarray):
         raise ValueError("Variable did not return a numpy ndarray! Instead got %s" % type(mat))
     if mat.ndim != 2:
@@ -80,63 +83,122 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
     else:
         add_cms_legend(ax, True, lumi=dataset.lumi)
 
-    if axis.Nax == 1: # axis edges cam be physical values!
-        edges = axis.edges[axis.axis_names[0]]
 
-        #need to clip +-inf
-        if edges[0] == -np.inf:
-            print("WARNING: clipping underflow bin")
-            edges = edges[1:]
-            mat = mat[1:, 1:]
-        if edges[-1] == +np.inf:
-            print("WARNING: clipping overflow bin")
-            edges = edges[:-1]
-            mat = mat[:-1, :-1]
+    if isinstance(axis, ArbitraryBinning):
+        if axis.Nax == 1:
+            xedges = axis.edges[axis.axis_names[0]]
+            yedges = xedges
+        else:
+            xedges = None
+            yedges = None
+    elif isinstance(axis, ArbitraryGenRecoBinning):
+        if axis.recobinning.Nax == 1:
+            yedges = axis.recobinning.edges[axis.recobinning.axis_names[0]]
+        else:
+            yedges = None
+        
+        if axis.genbinning.Nax == 1:
+            xedges = axis.genbinning.edges[axis.genbinning.axis_names[0]]
+        else:
+            xedges = None
+    else:
+        raise ValueError("Unsupported axis type: %s" % type(axis))
 
-        artist = ax.pcolormesh(edges, edges, mat, cmap=cmap, norm=normobj, rasterized=True)
+
+    #need to clip +-inf
+    if xedges is not None:
+        if xedges[0] == -np.inf:
+            print("WARNING: clipping underflow bin on x axis")
+            xedges = xedges[1:]
+            mat = mat[1:, :]
+        if xedges is not None and xedges[-1] == +np.inf:
+            print("WARNING: clipping overflow bin on x axis")
+            xedges = xedges[:-1]
+            mat = mat[:-1, :]
 
         # attempt to detect logarithmic binning
         # if bin spacing between first two bins is much smaller than 
         # spacing between last two bins, assume log binning
-        lower = edges[1] - edges[0]
-        upper = edges[-1] - edges[-2]
+        lower = xedges[1] - xedges[0]
+        upper = xedges[-1] - xedges[-2]
         if upper / lower > 2:
             ax.set_xscale('log')
+    else:
+        xedges = np.arange(mat.shape[1] + 1) - 0.5
+
+    if yedges is not None:
+        if yedges[0] == -np.inf:
+            print("WARNING: clipping underflow bin on y axis")
+            yedges = yedges[1:]
+            mat = mat[:, 1:]
+        if yedges is not None and yedges[-1] == +np.inf:
+            print("WARNING: clipping overflow bin on y axis")
+            yedges = yedges[:-1]
+            mat = mat[:, :-1]
+
+        # attempt to detect logarithmic binning
+        # if bin spacing between first two bins is much smaller than 
+        # spacing between last two bins, assume log binning
+        lower = yedges[1] - yedges[0]
+        upper = yedges[-1] - yedges[-2]
+        if upper / lower > 2:
             ax.set_yscale('log')
     else:
-        artist = ax.pcolormesh(mat, cmap=cmap, norm=normobj, rasterized=True)
+        yedges = np.arange(mat.shape[0] + 1) - 0.5
 
-    the_xlabel = label_from_binning(axis)
-    add_axis_label(ax, the_xlabel, which='x')
-    add_axis_label(ax, the_xlabel, which='y')
+
+    artist = ax.pcolormesh(xedges, yedges, mat, cmap=cmap, norm=normobj, rasterized=True)
+
+    if isinstance(axis, ArbitraryGenRecoBinning):
+        the_ylabel = label_from_binning(axis.recobinning)
+        the_xlabel = label_from_binning(axis.genbinning)
+        add_axis_label(ax, the_xlabel, which='x')
+        add_axis_label(ax, the_ylabel, which='y')
+    elif isinstance(axis, ArbitraryBinning):
+        the_xlabel = label_from_binning(axis)
+        add_axis_label(ax, the_xlabel, which='x')
+        add_axis_label(ax, the_xlabel, which='y')
+    else:
+        raise ValueError("Unsupported axis type: %s" % type(axis))
 
     cbar = fig.colorbar(artist, ax=ax)
     
-    if variable.normalized_by_err:
-        cbarlabel = 'Correlation'
+    if override_cbarlabel is not None:
+        cbar.set_label(override_cbarlabel)
     else:
-        if variable.hasjacobian:
-            cbarlabel = 'Covariance density'
+        if variable.normalized_by_err:
+            cbarlabel = 'Correlation'
         else:
-            cbarlabel = 'Covariance'
+            if variable.hasjacobian:
+                cbarlabel = 'Covariance density'
+            else:
+                cbarlabel = 'Covariance'
 
-    if variable.normalized_blocks:
-        normvars = variable.normalized_blocks
-        if len(normvars) == 1:
-            binsid = strip_units(lookup_axis_label(normvars[0]))
-        else:
-            binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(v)) for v in normvars])
+        if variable.normalized_blocks:
+            normvars = variable.normalized_blocks
+            if len(normvars) == 1:
+                binsid = strip_units(lookup_axis_label(normvars[0]))
+            else:
+                binsid = '(%s)' % ', '.join([strip_units(lookup_axis_label(v)) for v in normvars])
 
-        cbarlabel += ' (normalized per %s bin)' % binsid
+            cbarlabel += ' (normalized per %s bin)' % binsid
 
-    cbar.set_label(cbarlabel)
+        cbar.set_label(cbarlabel)
 
     add_text(ax, cut, extratext)
     
-    fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis, 'x')
-    make_fancy_prebinned_labels(ax, axis, 'y',
-                                fontsize_offset = fontsize_offset,
-                                fallback_rotation=fallback_rotation)
+    if isinstance(axis, ArbitraryBinning):
+        fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis, 'x')
+        make_fancy_prebinned_labels(ax, axis, 'y',
+                                    fontsize_offset = fontsize_offset,
+                                    fallback_rotation=fallback_rotation)
+    elif isinstance(axis, ArbitraryGenRecoBinning):
+        fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis.genbinning, 'x')
+        make_fancy_prebinned_labels(ax, axis.recobinning, 'y',
+                                    fontsize_offset = fontsize_offset,
+                                    fallback_rotation=fallback_rotation)
+    else:
+        raise ValueError("Unsupported axis type: %s" % type(axis))
 
     ax.set_box_aspect(1)
 
