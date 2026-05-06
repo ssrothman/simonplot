@@ -40,6 +40,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
                    output_folder: Union[str, None] = None,
                    output_prefix: Union[str, None] = None,
                    override_filename: Union[str, None] = None,
+                   override_ylabel : Union[str, None] = None,
                    extra_stuff : List[Any] = []):
 
     if labels_ is None or len(labels_) == 1:
@@ -346,30 +347,34 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     else:
         add_axis_label(ax_main, the_xlabel, which='x')
 
-    if density:
-        extra_ylabel = ' [Normalized]'
+    if override_ylabel is not None:
+        ylabel = override_ylabel
     else:
-        extra_ylabel = ''
-
-    if isinstance(axis, ArbitraryBinning) and axis.Nax > 1:
-        if not isinstance(variable[0], PrebinnedVariableProtocol):
-            raise RuntimeError("Prebinned Binning requires PrebinnedVariable!")
-        
-        v = variable[0]
-        ylabel = prebinned_ylabel(v, axis)
-        
-    else:
-        if isinstance(dataset[0], DatasetComparison):
-            ylabel = dataset[0].ylabel
-
-        elif 'rate' in variable[0].key:
-            ylabel = lookup_axis_label(variable[0].ykey) # pyright: ignore[reportAttributeAccessIssue]
-        elif isinstance(variable[0], ProfileVariable):
-            ylabel = lookup_axis_label(variable[0].ykey)
+        if isinstance(axis, ArbitraryBinning) and axis.Nax > 1:
+            if not isinstance(variable[0], PrebinnedVariableProtocol):
+                raise RuntimeError("Prebinned Binning requires PrebinnedVariable!")
+            
+            v = variable[0]
+            ylabel = prebinned_ylabel(v, axis)
+            
         else:
-            ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
+            if isinstance(dataset[0], DatasetComparison):
+                ylabel = dataset[0].ylabel
 
-    ylabel += extra_ylabel
+            elif 'rate' in variable[0].key:
+                ylabel = lookup_axis_label(variable[0].ykey) # pyright: ignore[reportAttributeAccessIssue]
+            elif isinstance(variable[0], ProfileVariable):
+                ylabel = lookup_axis_label(variable[0].ykey)
+            else:
+                ylabel = '$\\frac{dN}{d(%s)}$' % (clean_string(the_xlabel))
+       
+        if density:
+            extra_ylabel = ' [Normalized]'
+        else:
+            extra_ylabel = ''
+
+        ylabel += extra_ylabel
+        
     add_axis_label(ax_main, ylabel, which='y')
 
     if logy is None:
