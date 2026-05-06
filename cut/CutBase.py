@@ -86,3 +86,6 @@ class PrebinnedOperationBase(CutBase):
     def set_collection_name(self, collection_name):
          raise ValueError("PrebinnedOperations do not support collection names")
     
+    def clear_resulting_binning_cache(self):
+        if hasattr(self, '_resulting_binning'):
+            del self._resulting_binning

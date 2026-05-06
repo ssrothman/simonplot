@@ -13,7 +13,7 @@ from simonplot.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, 
 from simonplot.util.common import setup_canvas, add_cms_legend, savefig, add_text, draw_legend, make_oneax, make_axes_withpad, get_artist_color, make_fancy_prebinned_labels, label_from_binning
 
 from simonplot.variable.Variable import ProfileVariable, RateVariable
-from simonpy.AbitraryBinning import ArbitraryBinning
+from simonpy.AbitraryBinning import ArbitraryBinning, ArbitraryGenRecoBinning
 from simonpy.sanitization import ensure_same_length, all_same_key
 from simonpy.text import clean_string, strip_units, strip_dollar_signs
 
@@ -90,6 +90,9 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         if not isinstance(cut[0], PrebinnedOperationProtocol):
             raise RuntimeError("When using PrebinnedBinning, cut must be PrebinnedOperation")
         axis = binning.build_prebinned_axis(dataset[0], cut[0])
+        if isinstance(axis, ArbitraryGenRecoBinning):
+            raise RuntimeError("plot_histogram() cannot handle ArbitraryGenRecoBinning!")
+        
     elif isinstance(binning, BasicBinningProtocol):
         axis = binning.build_axis(variable[0])
     else:
@@ -559,4 +562,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     else:
         plt.show()
         
+    if isinstance(cut[0], PrebinnedOperationProtocol):
+        cut[0].clear_resulting_binning_cache()
+
     plt.close(fig)
