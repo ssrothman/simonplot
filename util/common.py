@@ -90,6 +90,22 @@ def check_ticklabel_overlap(ax : matplotlib.axes.Axes) -> bool:
             
         return False
 
+def make_catagorical_ticks(ax : matplotlib.axes.Axes, edges, lookup : dict, which : Literal['x', 'y']):
+    if which == 'x':
+        set_ticks_fun = ax.set_xticks
+        set_ticklabels_fun = ax.set_xticklabels
+        line_fun = ax.axvline
+    else:
+        set_ticks_fun = ax.set_yticks
+        set_ticklabels_fun = ax.set_yticklabels
+        line_fun = ax.axhline
+
+    set_ticks_fun(edges[:-1] + np.diff(edges)/2)
+    set_ticklabels_fun([lookup[i] for i in range(len(edges)-1)])
+
+    for edges in edges:
+        line_fun(edges, color='black', linestyle='-', linewidth=0.5, alpha=0.7)
+
 def make_fancy_prebinned_labels(ax : matplotlib.axes.Axes, 
                                 axis : ArbitraryBinning,
                                 which : Literal['x', 'y']= 'x',

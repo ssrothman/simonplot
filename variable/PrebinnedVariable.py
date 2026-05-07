@@ -250,14 +250,7 @@ class NormalizePerBlock(VariableBase):
         if hist is None:
             raise ValueError("Can't NormalizerPerBlock without histogram values!")
         
-        print("Normalize per block:")
-        print("\tvariable: %s"%self._var.key)
-        print("\tblocks: %s"%self._axes)
-        print("\tdataset: %s (%s)"%(dataset.key, type(dataset)))
-        print("\tcut: %s (%s)"%(cut.key, type(cut)))
-
         binning = cut.resulting_binning(dataset.binning)
-        print("\tbinning: %s"%binning)
 
         return normalize_per_block(
             hist, cov, binning, self._axes
@@ -325,16 +318,49 @@ class CorrelationFromCovariance(VariableBase):
             raise ValueError("PrebinnedDensityVariable requires a PrebinnedOperationProtocol cut")
 
         evaluated = self._var.evaluate(dataset, cut)
+        print("evaluated...")
+        if isinstance(evaluated, tuple):
+            print("\t", evaluated[0].shape, evaluated[1].shape)
+            print("\t", np.sum(evaluated[0]), np.sum(evaluated[1]))
+        else:
+            print("\t", evaluated.shape)
+            print("\t", np.sum(evaluated))
+
         hist, cov, _, _ = maybe_valcov_to_definitely_valcov(evaluated)
+
+        if hist is not None:
+            print("hist shape:", hist.shape)
+            print("hist sum:", np.sum(hist))   
+        if cov is not None:
+            print("cov shape:", cov.shape)
+            print("cov sum:", np.sum(cov))
 
         if cov is None:
             raise RuntimeError("CorrelationFromCovariance needs covariance!!")
         
-        errs = np.sqrt(np.diag(cov))
-        outer = np.outer(errs, errs)
+        diag = dataset.get_diag(cov, self, cut)
+        if isinstance(diag, tuple):
+            # xdiag and ydiag are different
+            xdiag, ydiag = diag
+            xerrs = np.sqrt(xdiag)
+            yerrs = np.sqrt(ydiag)
+            outer = np.outer(yerrs, xerrs)
+            
+            # for the division later
+            # this probably would crash anyway
+            # but what would it even mean to have 
+            # histogram values if the matrix is not square??
+            errs = np.ones_like(xdiag)
+        else:
+            # one unified diagonal
+            errs = np.sqrt(diag)
+            outer = np.outer(errs, errs)
+        
         outer[outer==0] = 1 #avoid divide by zero
 
+        print("BEFORE:", cov.sum())
         correl = cov/outer
+        print("AFTER:", correl.sum())
 
         if hist is not None:
             vals = hist/errs 
@@ -443,3 +469,12 @@ def strip_variable(variable : PrebinnedVariableProtocol) -> Tuple[PrebinnedVaria
         return subvar, details
     else:
         raise ValueError("Unknown variable type %s"%type(variable))
+
+def strip_correlation_from_variable(variable : PrebinnedVariableProtocol) -> PrebinnedVariableProtocol:
+    if isinstance(variable, CorrelationFromCovariance):
+        print("Stripping CorrelationFromCovariance from variable")
+        return variable._var
+    elif hasattr(variable, '_var'):
+        variable._var = strip_correlation_from_variable(variable._var) # type: ignore
+
+    return variable

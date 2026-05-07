@@ -7,7 +7,7 @@ from matplotlib.colors import Normalize, SymLogNorm, LogNorm
 from simonplot.config.lookuputil import lookup_axis_label
 from simonplot.variable.PrebinnedVariable import _ExtractCovarianceMatrix
 from simonplot.typing.Protocols import PrebinnedOperationProtocol, PrebinnedDatasetProtocol, PrebinnedBinningProtocol, PrebinnedVariableProtocol, VariableProtocol
-from simonplot.util.common import add_axis_label, add_text, label_from_binning, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend
+from simonplot.util.common import add_axis_label, add_text, label_from_binning, make_catagorical_ticks, make_fancy_prebinned_labels, setup_canvas, make_oneax, savefig, add_cms_legend
 from simonpy.AbitraryBinning import ArbitraryBinning, ArbitraryGenRecoBinning
 from simonpy.text import strip_units
 
@@ -52,10 +52,9 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
             else:
                 sym = False
         
-
     if sym:
         cmap = 'coolwarm'
-        extreme = np.max(np.abs(mat))
+        extreme = np.nanmax(np.abs(mat))
         if logc:
             normobj = SymLogNorm(
                 vmin = -extreme,
@@ -87,7 +86,7 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
     if isinstance(axis, ArbitraryBinning):
         if axis.Nax == 1:
             xedges = axis.edges[axis.axis_names[0]]
-            yedges = xedges
+            yedges = xedges.copy()
         else:
             xedges = None
             yedges = None
@@ -103,7 +102,6 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
             xedges = None
     else:
         raise ValueError("Unsupported axis type: %s" % type(axis))
-
 
     #need to clip +-inf
     if xedges is not None:
@@ -150,14 +148,24 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
     artist = ax.pcolormesh(xedges, yedges, mat, cmap=cmap, norm=normobj, rasterized=True)
 
     if isinstance(axis, ArbitraryGenRecoBinning):
-        the_ylabel = label_from_binning(axis.recobinning)
-        the_xlabel = label_from_binning(axis.genbinning)
-        add_axis_label(ax, the_xlabel, which='x')
-        add_axis_label(ax, the_ylabel, which='y')
+        if axis.recobinning.label_lookup() is not None:
+            pass # no axis labels here
+        else:
+            the_ylabel = label_from_binning(axis.recobinning)
+            add_axis_label(ax, the_ylabel, which='y')
+
+        if axis.genbinning.label_lookup() is not None:
+            pass # no axis labels here
+        else:
+            the_xlabel = label_from_binning(axis.genbinning)
+            add_axis_label(ax, the_xlabel, which='x')
     elif isinstance(axis, ArbitraryBinning):
-        the_xlabel = label_from_binning(axis)
-        add_axis_label(ax, the_xlabel, which='x')
-        add_axis_label(ax, the_xlabel, which='y')
+        if axis.label_lookup() is not None:
+            pass # no axis labels here
+        else:
+            the_xlabel = label_from_binning(axis)
+            add_axis_label(ax, the_xlabel, which='x')
+            add_axis_label(ax, the_xlabel, which='y')
     else:
         raise ValueError("Unsupported axis type: %s" % type(axis))
 
@@ -188,15 +196,38 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
     add_text(ax, cut, extratext)
     
     if isinstance(axis, ArbitraryBinning):
-        fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis, 'x')
-        make_fancy_prebinned_labels(ax, axis, 'y',
-                                    fontsize_offset = fontsize_offset,
-                                    fallback_rotation=fallback_rotation)
+        if axis.Nax == 1 and axis.label_lookup() is not None:
+            lookup = axis.label_lookup()
+            assert(lookup is not None)
+            lookup = lookup[axis.axis_names[0]]
+            make_catagorical_ticks(ax, xedges, lookup, 'x')
+            make_catagorical_ticks(ax, yedges, lookup, 'y')
+        else:
+            fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis, 'x')
+            make_fancy_prebinned_labels(ax, axis, 'y',
+                                        fontsize_offset = fontsize_offset,
+                                        fallback_rotation=fallback_rotation)
     elif isinstance(axis, ArbitraryGenRecoBinning):
-        fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis.genbinning, 'x')
-        make_fancy_prebinned_labels(ax, axis.recobinning, 'y',
-                                    fontsize_offset = fontsize_offset,
-                                    fallback_rotation=fallback_rotation)
+        if axis.genbinning.Nax == 1 and axis.genbinning.label_lookup() is not None:
+            lookup = axis.label_lookup('gen')
+            assert(lookup is not None)
+            lookup = lookup[axis.genbinning.axis_names[0]]
+            make_catagorical_ticks(ax, xedges, lookup, 'x')
+
+            fontsize_offset = 0
+            fallback_rotation = 0
+        else:
+            fontsize_offset, fallback_rotation = make_fancy_prebinned_labels(ax, axis.genbinning, 'x')
+        
+        if axis.recobinning.Nax == 1 and axis.recobinning.label_lookup() is not None:
+            lookup = axis.label_lookup('reco')
+            assert(lookup is not None)
+            lookup = lookup[axis.recobinning.axis_names[0]]
+            make_catagorical_ticks(ax, yedges, lookup, 'y')
+        else:
+            make_fancy_prebinned_labels(ax, axis.recobinning, 'y',
+                                        fontsize_offset = fontsize_offset,
+                                        fallback_rotation=fallback_rotation)
     else:
         raise ValueError("Unsupported axis type: %s" % type(axis))
 
@@ -225,5 +256,7 @@ def draw_matrix(variable : PrebinnedVariableProtocol,
         savefig(fig, output_path)
     else:
         plt.show()
+
+    cut.clear_resulting_binning_cache()
 
     plt.close(fig)

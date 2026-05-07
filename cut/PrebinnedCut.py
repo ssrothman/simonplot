@@ -27,8 +27,7 @@ class NoopOperation(PrebinnedOperationBase):
         return isinstance(other, NoopOperation)
 
     def evaluate(self, dataset):
-        dataset = self.ensure_valid_dataset(dataset)   
-        
+        dataset = self.ensure_valid_dataset(dataset)           
         return dataset.data
 
     def _compute_resulting_binning(self, binning : ArbitraryBinning) -> ArbitraryBinning:

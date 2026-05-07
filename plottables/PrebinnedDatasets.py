@@ -1,4 +1,5 @@
 from simonplot.typing.Protocols import PrebinnedDatasetAccessProtocol
+from simonplot.variable.PrebinnedVariable import strip_correlation_from_variable
 from .DatasetBase import SingleDatasetBase
 
 from simonpy.AbitraryBinning import ArbitraryBinning, ArbitraryGenRecoBinning
@@ -51,6 +52,9 @@ class ValCovPairDataset(PrebinnedDatasetBase):
     def cov(self):
         return self._data[1]
     
+    def get_diag(self, data, var, cut):
+        return np.diag(data)
+
     def project(self, axes : Sequence[str]):
         result = self.values
         projbinning = self._binning
@@ -90,6 +94,11 @@ def ValNoCovDataset(data : np.ndarray, *args, **kwargs) -> ValCovPairDataset:
     cov = np.zeros((len(data), len(data)), dtype=data.dtype)
     return ValCovPairDataset(*args, data=(data, cov), **kwargs)
 
+#ditto
+def CovNoValDataset(data : np.ndarray, *args, **kwargs) -> ValCovPairDataset:
+    val = np.zeros(len(data), dtype=data.dtype)
+    return ValCovPairDataset(*args, data=(val, data), **kwargs)
+
 class TransferMatrixDataset(PrebinnedDatasetBase):
     def __init__(self, 
                  key : str, 
@@ -107,6 +116,45 @@ class TransferMatrixDataset(PrebinnedDatasetBase):
 
         self._isMC = isMC
 
+        self._custom_x_diag = None
+        self._custom_y_diag = None
+
+    def setup_custom_diagonals(self, x_diag, y_diag):
+        assert(isinstance(self._binning, ArbitraryGenRecoBinning))
+        self._custom_x_diag = ValNoCovDataset(
+            data = x_diag,
+            key = self._key + "_xdiag",
+            color = self._color,
+            label = self._label + " (x diag)" if self._label is not None else None,
+            binning = self._binning.genbinning,
+            isMC = self._isMC
+        )
+        self._custom_y_diag = ValNoCovDataset(
+            data = y_diag,
+            key = self._key + "_ydiag",
+            color = self._color,
+            label = self._label + " (y diag)" if self._label is not None else None,
+            binning = self._binning.genbinning,
+            isMC = self._isMC
+        ) 
+
+    def get_diag(self, data, var, cut):
+        if self._custom_x_diag is None and self._custom_y_diag is None:
+            return np.diag(data)
+        elif self._custom_x_diag is not None and self._custom_y_diag is not None:
+            thevar = strip_correlation_from_variable(var)
+            x_diag = thevar.evaluate(self._custom_x_diag, cut) # type: ignore
+            y_diag = thevar.evaluate(self._custom_y_diag, cut) # type: ignore
+            if isinstance(x_diag, tuple):
+                x_diag = x_diag[0]
+            if isinstance(y_diag, tuple):                
+                y_diag = y_diag[0]
+            assert(isinstance(x_diag, np.ndarray))
+            assert(isinstance(y_diag, np.ndarray))
+            return x_diag, y_diag
+        else:
+            raise ValueError("Must provide both x and y diagonals, or neither!")
+
     def ensure_columns(self, columns: Sequence[str]):
         pass
 
@@ -115,12 +163,12 @@ class TransferMatrixDataset(PrebinnedDatasetBase):
         return "transfer"
     
     @property
-    def transfer(self) -> np.ndarray:
+    def data(self) -> np.ndarray:
         assert(isinstance(self._data, np.ndarray))
         return self._data
     
     def project(self, axes : Sequence[str]) -> np.ndarray:
-        result = self.transfer
+        result = self.data
         projbinning = self._binning
         assert(isinstance(projbinning, ArbitraryGenRecoBinning))
         for ax in axes:
@@ -132,7 +180,7 @@ class TransferMatrixDataset(PrebinnedDatasetBase):
     
     def slice(self, edges):
         assert(isinstance(self._binning, ArbitraryGenRecoBinning))
-        result = self._binning.get_slice_transfer2d(self.transfer, edges)
+        result = self._binning.get_slice_transfer2d(self.data, edges)
         assert(isinstance(result, np.ndarray))
         return result
     

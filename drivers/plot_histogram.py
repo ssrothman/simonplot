@@ -2,10 +2,11 @@ from simonplot.config.lookuputil import lookup_axis_label
 from simonplot.plottables.DatasetBase import DatasetComparisonBase
 from simonplot.plottables.Datasets import DatasetComparison
 from simonplot.plottables.Functions import FuncBase
+from simonplot.plottables.PlotStuff import AbstractPlotSpec
 from simonplot.util.profile import ProfileHistStruct
 from simonplot.util.rate import RateHistStruct
 from simonplot.typing.Protocols import HistplotMode, PrebinnedVariableProtocol
-from simonplot.util.common import add_axis_label, prebinned_ylabel
+from simonplot.util.common import add_axis_label, make_catagorical_ticks, prebinned_ylabel
 from simonplot.config import config, check_auto_logx
 
 from simonplot.typing.Protocols import CutProtocol, PrebinnedOperationProtocol, VariableProtocol, BaseDatasetProtocol, BaseBinningProtocol, AutoBinningProtocol, DefaultBinningProtocol, PrebinnedBinningProtocol, BasicBinningProtocol
@@ -239,6 +240,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     for extra in extra_stuff:
         if isinstance(extra, FuncBase):
             extra.plot(ax_main, start=axis.edges[0], stop=axis.edges[-1], logx=logx)  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
+        elif isinstance(extra, AbstractPlotSpec):
+            extra.plot(ax_main)
         else:
             raise RuntimeError("Unsupported extra_stuff type %s!"%type(extra))
         
@@ -297,7 +300,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             min(largest_nontrivial_ratio + pad, original_ylim[1])
         )
         
-        add_axis_label(ax_pad, the_xlabel, which='x') # pyright: ignore[reportPossiblyUnboundVariable]
+        if isinstance(axis, ArbitraryBinning) and axis.Nax == 1 and axis.label_lookup() is not None:
+            pass
+        else:
+            add_axis_label(ax_pad, the_xlabel, which='x') # pyright: ignore[reportPossiblyUnboundVariable]
 
         if pulls:
             extra_ylabel = ' [pull]'
@@ -348,7 +354,10 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
         add_axis_label(ax_pad, pad_ylabel, which='y') # pyright: ignore[reportPossiblyUnboundVariable]
     else:
-        add_axis_label(ax_main, the_xlabel, which='x')
+        if isinstance(axis, ArbitraryBinning) and axis.Nax == 1 and axis.label_lookup() is not None:
+            pass
+        else:
+            add_axis_label(ax_main, the_xlabel, which='x')
 
     if override_ylabel is not None:
         ylabel = override_ylabel
@@ -462,6 +471,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         ax_pad.grid(axis='y', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
 
     if binning.has_custom_labels:
+        print("TEST")
         # get category label [pylance is confused :(]
         ticklabels_ints = axis.value(axis.edges[:-1]) # pyright: ignore[reportAttributeAccessIssue] 
         ticklabels_strs = []
@@ -502,19 +512,29 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.7)
     
     elif type(axis) is ArbitraryBinning:
-        ax2 = make_fancy_prebinned_labels(
-            ax_main,
-            axis,
-            which = 'x',
-            skip_labels = do_ratiopad
-        )
-        if do_ratiopad:
+        if axis.Nax ==1 and axis.label_lookup() is not None:
+            relevant_ax = ax_pad if do_ratiopad else ax_main # type: ignore
+            lookup = axis.label_lookup()
+            assert(lookup is not None)
+            lookup = lookup[axis.axis_names[0]]
+
+            xedges = axis.edges[axis.axis_names[0]]
+
+            make_catagorical_ticks(relevant_ax, xedges, lookup, 'x')
+        else:
             make_fancy_prebinned_labels(
-                ax_pad, # pyright: ignore[reportPossiblyUnboundVariable]
+                ax_main,
                 axis,
                 which = 'x',
-                skip_labels = False
+                skip_labels = do_ratiopad
             )
+            if do_ratiopad:
+                make_fancy_prebinned_labels(
+                    ax_pad, # pyright: ignore[reportPossiblyUnboundVariable]
+                    axis,
+                    which = 'x',
+                    skip_labels = False
+                )
 
     draw_legend(ax_main, nolegend)
 
