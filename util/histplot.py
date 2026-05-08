@@ -157,8 +157,8 @@ def _simon_histplot_ratio(vals_num, errs_num,
         ratio = vals_num / vals_denom
 
         ratio_err = np.sqrt(
-                np.square(errs_num/vals_num) + np.square(errs_denom/vals_denom)
-        ) * ratio
+                np.square(errs_num/vals_denom) + np.square(vals_num*errs_denom/np.square(vals_denom))
+        ) 
 
     if pulls:
         ratio = ratio-1
