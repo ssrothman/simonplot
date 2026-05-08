@@ -392,21 +392,25 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     if logy is None:
         if 'rate' in variable[0].key:
             logy = False
+
         else:
             if isinstance(Hs[0], (hist.Hist, RateHistStruct, ProfileHistStruct)):
                 Hvals = np.concatenate([H.values(flow=True) for H in Hs])
             else:
                 Hvals = np.concatenate([H[0] for H in Hs])
 
-            pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
-            pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
-            pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
-            
-            test = (pct99 - pct50) / (pct50 - pct01)
-            if test > 10:
-                logy = True
-            else:
+            if np.nanmin(Hvals) < 0:
                 logy = False
+            else:
+                pct01 = np.percentile(Hvals[Hvals > 0], 01.0)
+                pct50 = np.percentile(Hvals[Hvals > 0], 50.0)
+                pct99 = np.percentile(Hvals[Hvals > 0], 99.0)
+                
+                test = (pct99 - pct50) / (pct50 - pct01)
+                if test > 10:
+                    logy = True
+                else:
+                    logy = False
 
     if logx:
         ax_main.set_xscale('log')
