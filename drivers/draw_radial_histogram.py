@@ -16,8 +16,8 @@ from matplotlib.colors import Normalize, LogNorm, SymLogNorm
 from typing import List, Union, assert_never
 from enum import IntEnum
 
-_ALLOWED_ANGULAR_NAMES = ['phi', 'angle', 'theta', 'c']
-_ALLOWED_RADIAL_NAMES = ['r', 'radius']
+_ALLOWED_ANGULAR_NAMES = ['phi', 'angle', 'theta', 'c', 'phi_gen', 'phi_reco', 'angle_gen', 'angle_reco', 'theta_gen', 'theta_reco', 'c_gen', 'c_reco']
+_ALLOWED_RADIAL_NAMES = ['r', 'radius', 'r_gen', 'r_reco', 'radius_gen', 'radius_reco', 'R', 'R_gen', 'R_reco']
 
 class _RANGES(IntEnum):
     FULL = 0
