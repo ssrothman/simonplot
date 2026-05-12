@@ -84,30 +84,43 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         else:
             transform=None
 
-        axis = binning.build_auto_axis(variable, cut, dataset, transform=transform)
+        axis = [binning.build_auto_axis(variable, cut, dataset, transform=transform)] * len(variable)
+
     elif isinstance(binning, DefaultBinningProtocol):
-        axis = binning.build_default_axis(variable[0])
+        axis = [binning.build_default_axis(variable[0])] * len(variable)
     elif isinstance(binning, PrebinnedBinningProtocol):
-        if not isinstance(cut[0], PrebinnedOperationProtocol):
-            raise RuntimeError("When using PrebinnedBinning, cut must be PrebinnedOperation")
-        axis = binning.build_prebinned_axis(dataset[0], cut[0])
+        axis = []
+
+        for i in range(len(cut)):
+            ci = cut[i]
+            if not isinstance(ci, PrebinnedOperationProtocol):
+                raise RuntimeError("When using PrebinnedBinning, cut must be PrebinnedOperation")
+        
+            nextax = binning.build_prebinned_axis(dataset[i], ci)
+            if isinstance(axis, ArbitraryGenRecoBinning):
+                raise RuntimeError("plot_histogram() cannot handle ArbitraryGenRecoBinning!")
+            elif not isinstance(nextax, ArbitraryBinning):
+                raise RuntimeError("PrebinnedBinning must produce ArbitraryBinning!")
+
+            axis.append(nextax)
+
         if isinstance(axis, ArbitraryGenRecoBinning):
             raise RuntimeError("plot_histogram() cannot handle ArbitraryGenRecoBinning!")
-        
+                
     elif isinstance(binning, BasicBinningProtocol):
-        axis = binning.build_axis(variable[0])
+        axis = [binning.build_axis(variable[0])] * len(variable)
     else:
         raise RuntimeError("Binning did not match any known binning protocol!")
 
     #resolve auto logx AFTER building axis for prebinned variables
-    if logx is None and isinstance(axis, ArbitraryBinning):
-        if axis.Nax == 1:
-            logx = check_auto_logx(axis.axis_names[0])
+    if logx is None and isinstance(axis[0], ArbitraryBinning):
+        if axis[0].Nax == 1:
+            logx = check_auto_logx(axis[0].axis_names[0])
         else:
             logx = False
 
-    if isinstance(axis, ArbitraryBinning):
-        the_xlabel = label_from_binning(axis)
+    if isinstance(axis[0], ArbitraryBinning):
+        the_xlabel = label_from_binning(axis[0])
     else:
         the_xlabel = variable[0].label 
 
@@ -228,7 +241,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             nolegend = False #force legend if dataset has label
 
         artist, H = d.plot_hist(
-            v, c, w, axis, 
+            v, c, w, axis[i], 
             density, ax_main, 
             style_from_dset or (not d.isMC),
             label=l,
@@ -239,7 +252,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
     for extra in extra_stuff:
         if isinstance(extra, FuncBase):
-            extra.plot(ax_main, start=axis.edges[0], stop=axis.edges[-1], logx=logx)  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
+            extra.plot(ax_main, start=axis[-1].edges[0], stop=axis[-1].edges[-1], logx=logx)  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
         elif isinstance(extra, AbstractPlotSpec):
             extra.plot(ax_main)
         else:
@@ -263,7 +276,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
             _, ratiovals, ratioerrs = d.plot_hist_ratio(
                 Hnom, Hs[i],
-                axis,
+                axis[i],
                 density = density,
                 ax = ax_pad, # pyright: ignore[reportPossiblyUnboundVariable]
                 own_style = style_from_dset,
@@ -300,7 +313,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             min(largest_nontrivial_ratio + pad, original_ylim[1])
         )
         
-        if isinstance(axis, ArbitraryBinning) and axis.Nax == 1 and axis.label_lookup() is not None:
+        if isinstance(axis[0], ArbitraryBinning) and axis[0].Nax == 1 and axis[0].label_lookup() is not None:
             pass
         else:
             add_axis_label(ax_pad, the_xlabel, which='x') # pyright: ignore[reportPossiblyUnboundVariable]
@@ -354,7 +367,7 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
         add_axis_label(ax_pad, pad_ylabel, which='y') # pyright: ignore[reportPossiblyUnboundVariable]
     else:
-        if isinstance(axis, ArbitraryBinning) and axis.Nax == 1 and axis.label_lookup() is not None:
+        if isinstance(axis[0], ArbitraryBinning) and axis[0].Nax == 1 and axis[0].label_lookup() is not None:
             pass
         else:
             add_axis_label(ax_main, the_xlabel, which='x')
@@ -362,12 +375,12 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
     if override_ylabel is not None:
         ylabel = override_ylabel
     else:
-        if isinstance(axis, ArbitraryBinning) and axis.Nax > 1:
+        if isinstance(axis[0], ArbitraryBinning) and axis[0].Nax > 1:
             if not isinstance(variable[0], PrebinnedVariableProtocol):
                 raise RuntimeError("Prebinned Binning requires PrebinnedVariable!")
             
             v = variable[0]
-            ylabel = prebinned_ylabel(v, axis)
+            ylabel = prebinned_ylabel(v, axis[0])
             
         else:
             if isinstance(dataset[0], DatasetComparison):
@@ -431,9 +444,11 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         if density:
             Hvals = [H / np.sum(H) for H in Hvals]
 
-        min_trueY = np.max(Hvals)
+        import awkward as ak
+        
+        min_trueY = ak.max(Hvals)
         for H in Hvals:
-            Hmin = np.min(H[H > 0])
+            Hmin = ak.min(H[H > 0])
             if min_trueY is None or Hmin < min_trueY:
                 min_trueY = Hmin
 
@@ -475,9 +490,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         ax_pad.grid(axis='y', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
 
     if binning.has_custom_labels:
-        print("TEST")
         # get category label [pylance is confused :(]
-        ticklabels_ints = axis.value(axis.edges[:-1]) # pyright: ignore[reportAttributeAccessIssue] 
+        ticklabels_ints = axis[0].value(axis[0].edges[:-1]) # pyright: ignore[reportAttributeAccessIssue] 
         ticklabels_strs = []
         for val in ticklabels_ints:
             if str(val) in binning.label_lookup:
@@ -488,8 +502,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
         #major ticks at integer positions
         #no minor ticks
         if do_ratiopad:
-            ax_pad.set_xticks(axis.edges) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
-            ax_pad.set_xticks(axis.centers, minor=True) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
+            ax_pad.set_xticks(axis[0].edges) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
+            ax_pad.set_xticks(axis[0].centers, minor=True) # pyright: ignore[reportAttributeAccessIssue, reportPossiblyUnboundVariable]
             ax_pad.set_xticklabels(ticklabels_strs,  # pyright: ignore[reportPossiblyUnboundVariable]
                             rotation=30, ha='center', 
                             fontsize=14,
@@ -501,8 +515,8 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
             ax_pad.tick_params(axis='x', which='minor', length=0) # pyright: ignore[reportPossiblyUnboundVariable]
             ax_pad.grid(axis='x', which='major', linestyle='--', alpha=0.7) # pyright: ignore[reportPossiblyUnboundVariable]
         else:
-            ax_main.set_xticks(axis.edges) # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
-            ax_main.set_xticks(axis.centers, minor=True) # pyright: ignore[reportAttributeAccessIssue]
+            ax_main.set_xticks(axis[0].edges) # pyright: ignore[reportArgumentType, reportAttributeAccessIssue]
+            ax_main.set_xticks(axis[0].centers, minor=True) # pyright: ignore[reportAttributeAccessIssue]
             ax_main.set_xticklabels(ticklabels_strs, 
                             rotation=0, ha='center',
                             #fontsize=14,
@@ -515,27 +529,27 @@ def plot_histogram(variable_: Union[VariableProtocol, List[VariableProtocol]],
 
             ax_main.grid(axis='x', which='major', linestyle='--', alpha=0.7)
     
-    elif type(axis) is ArbitraryBinning:
-        if axis.Nax ==1 and axis.label_lookup() is not None:
+    elif type(axis[0]) is ArbitraryBinning:
+        if axis[0].Nax ==1 and axis[0].label_lookup() is not None:
             relevant_ax = ax_pad if do_ratiopad else ax_main # type: ignore
-            lookup = axis.label_lookup()
+            lookup = axis[0].label_lookup()
             assert(lookup is not None)
-            lookup = lookup[axis.axis_names[0]]
+            lookup = lookup[axis[0].axis_names[0]]
 
-            xedges = axis.edges[axis.axis_names[0]]
+            xedges = axis[0].edges[axis[0].axis_names[0]]
 
             make_catagorical_ticks(relevant_ax, xedges, lookup, 'x')
         else:
             make_fancy_prebinned_labels(
                 ax_main,
-                axis,
+                axis[0],
                 which = 'x',
                 skip_labels = do_ratiopad
             )
             if do_ratiopad:
                 make_fancy_prebinned_labels(
                     ax_pad, # pyright: ignore[reportPossiblyUnboundVariable]
-                    axis,
+                    axis[0],
                     which = 'x',
                     skip_labels = False
                 )
